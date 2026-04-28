@@ -1,0 +1,9 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^cd /home/akbar/ppob/whuzpay/whuz-app && node -e \"\nconst \\{ PrismaClient \\} = require\\('@prisma/client'\\);\nconst bcrypt = require\\('bcryptjs'\\);\nconst p = new PrismaClient\\(\\);\nbcrypt\\.hash\\('password123', 10\\)\\.then\\(hash => \\{\n  return p\\.user\\.create\\(\\{\n    data: \\{ name:'Test User', phone:'08123456789', passwordHash:hash, role:'MEMBER',\n      wallet: \\{ create:\\{ balance:500000 \\} \\} \\}\n  \\}\\);\n\\}\\)\\.then\\(u => \\{ console\\.log\\('OK user:', u\\.id\\); return p\\.\\\\\\$disconnect\\(\\); \\}\\)\n\\.catch\\(e => \\{ console\\.error\\('ERR:', e\\.message\\); return p\\.\\\\\\$disconnect\\(\\); \\}\\);\n\"$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "npx tsc": true
+    }
+}

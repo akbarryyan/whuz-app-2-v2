@@ -1,0 +1,73 @@
+@import "tailwindcss";
+
+html,
+body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  overscroll-behavior-x: none;
+}
+
+html {
+  overflow-x: hidden;
+}
+
+:root {
+  --font-body: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-display: "Trebuchet MS", "Segoe UI", Arial, sans-serif;
+  --background: #f6f7fb;
+  --foreground: #0e1117;
+  --surface: #ffffff;
+  --surface-muted: #eef1f6;
+  --primary: #0f172a;
+  --primary-strong: #111827;
+  --accent: #16a34a;
+  --accent-soft: #dcfce7;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --border: rgba(15, 23, 42, 0.12);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-body);
+  --font-mono: var(--font-display);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0b0f14;
+    --foreground: #e5e7eb;
+    --surface: #111827;
+    --surface-muted: #0f172a;
+    --primary: #e5e7eb;
+    --primary-strong: #f8fafc;
+    --accent: #22c55e;
+    --accent-soft: rgba(34, 197, 94, 0.16);
+    --warning: #fbbf24;
+    --danger: #f87171;
+    --border: rgba(148, 163, 184, 0.22);
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body), "Helvetica Neue", sans-serif;
+  overflow-x: hidden;
+  position: relative;
+}
+
+.text-balance {
+  text-wrap: balance;
+}
+
+.hide-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}

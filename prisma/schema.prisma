@@ -1,0 +1,601 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// PROVIDER MODELS
+// ============================================
+
+model ProviderSetting {
+  id            String    @id @default(cuid())
+  provider      String    @unique // DIGIFLAZZ, VIP_RESELLER
+  defaultMargin Decimal   @default(0) @db.Decimal(15, 2) // Default margin untuk semua produk
+  marginType    String    @default("FIXED") // FIXED or PERCENTAGE
+  isActive      Boolean   @default(true)
+  lastBalance   Decimal?  @db.Decimal(15, 2) // Cache last balance check
+  lastBalanceAt DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("provider_settings")
+}
+
+model ProviderLog {
+  id           String   @id @default(cuid())
+  provider     String // DIGIFLAZZ, VIP_RESELLER
+  action       String // checkBalance, getProducts, purchase, healthCheck
+  request      Json? // Request payload
+  response     Json? // Response payload
+  success      Boolean
+  errorMessage String?  @db.Text
+  latency      Int // in milliseconds
+  createdAt    DateTime @default(now())
+
+  @@index([provider, action])
+  @@index([createdAt])
+  @@map("provider_logs")
+}
+
+model Product {
+  id            String   @id @default(cuid())
+  provider      String // DIGIFLAZZ, VIP_RESELLER
+  providerCode  String // SKU code from provider
+  name          String   @db.VarChar(255)
+  category      String   @db.VarChar(100)
+  brand         String   @db.VarChar(100)
+  type          String   @db.VarChar(50)
+  providerPrice Decimal  @db.Decimal(15, 2) // Harga dari provider
+  margin        Decimal  @default(0) @db.Decimal(15, 2) // Margin keuntungan
+  sellingPrice  Decimal  @db.Decimal(15, 2) // Harga jual (providerPrice + margin)
+  stock         Boolean  @default(true)
+  description   String?  @db.Text
+  isActive      Boolean  @default(true)
+  lastSyncAt    DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  orders         Order[]
+  sellerProducts SellerProduct[]
+
+  @@unique([provider, providerCode])
+  @@index([category, brand])
+  @@index([isActive, stock])
+  @@map("products")
+}
+
+// ============================================
+// USER & WALLET MODELS
+// ============================================
+// USER TIER (pricing roles)
+// ============================================
+
+model UserTier {
+  id               String   @id @default(cuid())
+  name             String   @unique // member, reseller, agent
+  label            String // Member, Reseller, Agent
+  description      String?  @db.VarChar(255)
+  marginMultiplier Decimal  @default(1.0000) @db.Decimal(5, 4) // 1.0 = full margin, 0.8 = 20% off
+  minOrders        Int      @default(0) // 0 = manual assignment only; >0 = auto-upgrade threshold
+  isDefault        Boolean  @default(false) // only one can be default
+  sortOrder        Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  users User[]
+
+  @@map("user_tiers")
+}
+
+// ============================================
+// USER & WALLET MODELS
+// ============================================
+
+model User {
+  id           String   @id @default(cuid())
+  email        String?  @unique
+  phone        String?  @unique
+  name         String?
+  passwordHash String?
+  role         String   @default("MEMBER") // MEMBER, ADMIN — access control
+  tierId       String? // FK to UserTier — pricing tier (null = use default tier)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tier              UserTier?                 @relation(fields: [tierId], references: [id], onDelete: SetNull)
+  wallet            Wallet?
+  orders            Order[]
+  walletTopups      WalletTopup[]
+  tickets           Ticket[]
+  brandReviews      BrandReview[]
+  sellerProfile     SellerProfile?
+  sellerProducts    SellerProduct[]           @relation("UserSellerProducts")
+  sellerOrders      Order[]                   @relation("SellerOrders")
+  sellerWithdrawals SellerWithdrawalRequest[] @relation("SellerWithdrawals")
+
+  @@index([email])
+  @@index([phone])
+  @@index([tierId])
+  @@map("users")
+}
+
+model Wallet {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  balance   Decimal  @default(0) @db.Decimal(15, 2)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ledgerEntries LedgerEntry[]
+
+  @@map("wallets")
+}
+
+model LedgerEntry {
+  id            String   @id @default(cuid())
+  walletId      String
+  type          String // HOLD, DEBIT, CREDIT, RELEASE, REFUND
+  amount        Decimal  @db.Decimal(15, 2)
+  balanceBefore Decimal  @db.Decimal(15, 2)
+  balanceAfter  Decimal  @db.Decimal(15, 2)
+  reference     String? // Order ID or transaction reference
+  description   String?  @db.Text
+  createdAt     DateTime @default(now())
+
+  wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@index([walletId, createdAt])
+  @@index([reference])
+  @@map("ledger_entries")
+}
+
+// ============================================
+// ORDER & PAYMENT MODELS
+// ============================================
+
+model Order {
+  id                         String    @id @default(cuid())
+  orderCode                  String    @unique // WP-YYMMDD-XXX
+  userId                     String? // NULL for guest
+  productId                  String
+  sellerId                   String? // User penjual yang memiliki katalog produk ini
+  sellerProductId            String? // Snapshot relasi produk seller yang dipilih saat checkout
+  provider                   String? // DIGIFLAZZ, VIP_RESELLER — which provider to use
+  targetNumber               String    @db.VarChar(100) // Phone, Game ID, etc.
+  targetData                 Json? // Additional data (server ID, zone, etc.)
+  whatsapp                   String?   @db.VarChar(20) // Customer WhatsApp number for notification
+  // Pricing snapshot (frozen at order creation)
+  basePrice                  Decimal   @default(0) @db.Decimal(15, 2) // Provider cost
+  markup                     Decimal   @default(0) @db.Decimal(15, 2) // Markup/margin applied
+  fee                        Decimal   @default(0) @db.Decimal(15, 2) // Payment gateway fee
+  discount                   Decimal   @default(0) @db.Decimal(15, 2) // Voucher discount applied
+  voucherCode                String?   @db.VarChar(50) // Voucher code used
+  amount                     Decimal   @db.Decimal(15, 2) // Total charged to customer (after discount)
+  sellerGrossProfit          Decimal   @default(0) @db.Decimal(15, 2) // Margin kotor merchant sebelum fee platform
+  sellerFeeAmount            Decimal   @default(0) @db.Decimal(15, 2) // Potongan fee platform
+  sellerCommission           Decimal   @default(0) @db.Decimal(15, 2) // Komisi seller yang dibekukan saat checkout
+  status                     String // CREATED, WAITING_PAYMENT, PAID, PROCESSING_PROVIDER, SUCCESS, FAILED, EXPIRED, REFUNDED
+  paymentMethod              String // WALLET, PAYMENT_GATEWAY
+  serialNumber               String?   @db.Text // SN from provider
+  providerRef                String? // idempotency ref (transaction ID from provider)
+  viewTokenHash              String?   @unique // Hashed viewToken — raw token never stored
+  notes                      String?   @db.Text
+  sellerCommissionCreditedAt DateTime?
+  createdAt                  DateTime  @default(now())
+  updatedAt                  DateTime  @updatedAt
+
+  user           User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+  seller         User?              @relation("SellerOrders", fields: [sellerId], references: [id], onDelete: SetNull)
+  sellerProduct  SellerProduct?     @relation(fields: [sellerProductId], references: [id], onDelete: SetNull)
+  product        Product            @relation(fields: [productId], references: [id])
+  paymentInvoice PaymentInvoice?
+  providerLogs   OrderProviderLog[]
+
+  @@index([orderCode])
+  @@index([userId, status])
+  @@index([sellerId, status])
+  @@index([sellerProductId])
+  @@index([status, createdAt])
+  @@index([viewTokenHash])
+  @@map("orders")
+}
+
+// ============================================
+// SELLER / MARKETPLACE MODELS
+// ============================================
+
+model SellerProfile {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  slug        String   @unique @db.VarChar(80)
+  displayName String   @db.VarChar(120)
+  description String?  @db.Text
+  profileImageUrl String? @db.Text
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([isActive])
+  @@map("seller_profiles")
+}
+
+model SellerProduct {
+  id              String   @id @default(cuid())
+  sellerId        String
+  productId       String
+  sellingPrice    Decimal? @db.Decimal(15, 2)
+  commissionType  String   @default("PERCENT") // PERCENT | FIXED
+  commissionValue Decimal  @default(0) @db.Decimal(15, 2)
+  feeType         String   @default("PERCENT") // PERCENT | FIXED
+  feeValue        Decimal  @default(0) @db.Decimal(15, 2)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  seller  User    @relation("UserSellerProducts", fields: [sellerId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  orders  Order[]
+
+  @@unique([sellerId, productId])
+  @@index([sellerId, isActive])
+  @@index([productId, isActive])
+  @@map("seller_products")
+}
+
+model SellerWithdrawalRequest {
+  id            String    @id @default(cuid())
+  userId        String
+  amount        Decimal   @db.Decimal(15, 2)
+  status        String    @default("PENDING") // PENDING | APPROVED | REJECTED | PAID | CANCELLED
+  bankCode      String?   @db.VarChar(40)
+  accountName   String    @db.VarChar(120)
+  accountNumber String    @db.VarChar(80)
+  bankName      String    @db.VarChar(120)
+  note          String?   @db.Text
+  payoutGateway String?   @db.VarChar(40)
+  payoutRefId   String?   @db.VarChar(120)
+  payoutAggRefId String?  @db.VarChar(120)
+  payoutRawPayload Json?
+  processedNote String?   @db.Text
+  processedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user User @relation("SellerWithdrawals", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status, createdAt])
+  @@index([status, createdAt])
+  @@map("seller_withdrawal_requests")
+}
+
+model PaymentInvoice {
+  id            String    @id @default(cuid())
+  orderId       String    @unique
+  gatewayName   String // PAKASIR, etc.
+  invoiceId     String    @unique // Invoice ID from gateway
+  amount        Decimal   @db.Decimal(15, 2)
+  fee           Decimal   @default(0) @db.Decimal(15, 2)
+  totalPayment  Decimal   @default(0) @db.Decimal(15, 2)
+  method        String? // Payment method chosen (QRIS, VA_BCA, etc.)
+  paymentNumber String?   @db.Text // VA number, raw QRIS string, etc.
+  paymentUrl    String?   @db.Text
+  status        String // PENDING, PAID, EXPIRED, CANCELLED
+  rawPayload    Json? // Last raw webhook payload
+  paidAt        DateTime?
+  expiredAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@index([status])
+  @@map("payment_invoices")
+}
+
+model OrderProviderLog {
+  id           String   @id @default(cuid())
+  orderId      String
+  provider     String
+  action       String // inquiry, purchase, checkStatus
+  request      Json?
+  response     Json?
+  success      Boolean
+  errorMessage String?  @db.Text
+  createdAt    DateTime @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt])
+  @@map("order_provider_logs")
+}
+
+// ============================================
+// WEBHOOK MODELS
+// ============================================
+
+model WebhookEvent {
+  id           String    @id @default(cuid())
+  source       String // PAKASIR, DIGIFLAZZ, VIP_RESELLER
+  eventId      String    @unique // For idempotency
+  eventType    String
+  payload      Json
+  processed    Boolean   @default(false)
+  processedAt  DateTime?
+  errorMessage String?   @db.Text
+  createdAt    DateTime  @default(now())
+
+  @@index([source, eventId])
+  @@index([processed])
+  @@map("webhook_events")
+}
+
+// ============================================
+// PAYMENT METHOD CONFIG (managed by admin)
+// ============================================
+
+model PaymentMethod {
+  id        String   @id @default(cuid())
+  key       String   @unique // e.g. qris, bni_va, bri_va
+  label     String // e.g. QRIS, BNI Virtual Account
+  group     String   @default("OTHER") // QRIS, VIRTUAL_ACCOUNT
+  imageUrl  String?  @db.Text
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+  @@map("payment_methods")
+}
+
+// ============================================
+// SITE CONFIGURATION (key-value, managed by admin)
+// ============================================
+
+model SiteConfig {
+  key       String   @id // e.g. PROVIDER_DIGIFLAZZ_MODE, PROVIDER_VIP_MODE, PROVIDER_PAKASIR_MODE
+  value     String   @db.Text // e.g. mock, real
+  updatedAt DateTime @updatedAt
+
+  @@map("site_configs")
+}
+
+model SiteVisitor {
+  id           String   @id @default(cuid())
+  visitorId    String   @unique
+  firstSeenAt  DateTime @default(now())
+  lastSeenAt   DateTime @updatedAt
+  lastPath     String?  @db.VarChar(255)
+
+  @@index([firstSeenAt])
+  @@map("site_visitors")
+}
+
+model SiteDailyMetric {
+  date           String   @id // YYYY-MM-DD (Asia/Jakarta)
+  uniqueVisitors Int      @default(0)
+  pageViews      Int      @default(0)
+  updatedAt      DateTime @updatedAt
+
+  @@map("site_daily_metrics")
+}
+
+// ============================================
+// BRAND METADATA (managed by admin, survives re-sync)
+// ============================================
+
+model BrandMeta {
+  id          String   @id @default(cuid())
+  brand       String   @unique // Exact brand name matching Product.brand
+  imageUrl    String?  @db.Text
+  inputFields Json? // Array of InputFieldDef: [{key,label,placeholder,required,width}]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("brand_meta")
+}
+
+// ============================================
+// WALLET TOP UP
+// ============================================
+
+model WalletTopup {
+  id            String    @id @default(cuid())
+  topupCode     String    @unique // WT-YYYYMMDD-XXXX — used as order_id in Pakasir
+  userId        String
+  amount        Decimal   @db.Decimal(15, 2)
+  fee           Decimal   @default(0) @db.Decimal(15, 2)
+  totalPayment  Decimal   @default(0) @db.Decimal(15, 2)
+  status        String // PENDING, COMPLETED, EXPIRED, FAILED
+  paymentMethod String?
+  paymentUrl    String?   @db.Text
+  paymentNumber String?   @db.Text
+  invoiceId     String?   @unique
+  paidAt        DateTime?
+  expiredAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@index([topupCode])
+  @@map("wallet_topups")
+}
+
+// ============================================
+// PROMO
+// ============================================
+
+model Promo {
+  id          String    @id @default(cuid())
+  title       String
+  description String?   @db.Text
+  imageUrl    String    @db.Text
+  linkUrl     String?   @db.Text // Optional deep-link or external URL when card is tapped
+  startDate   DateTime?
+  endDate     DateTime? // null = no expiry
+  isActive    Boolean   @default(true)
+  sortOrder   Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([isActive, sortOrder])
+  @@map("promos")
+}
+
+// ============================================
+// TICKET / CS MODELS
+// ============================================
+
+model Ticket {
+  id        String   @id @default(cuid())
+  userId    String
+  subject   String
+  status    String   @default("OPEN") // OPEN, REPLIED, CLOSED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages TicketMessage[]
+
+  @@index([userId, status])
+  @@index([status, updatedAt])
+  @@map("tickets")
+}
+
+model TicketMessage {
+  id         String   @id @default(cuid())
+  ticketId   String
+  senderRole String // USER, ADMIN
+  senderId   String? // userId of sender (nullable for system msgs)
+  body       String   @db.Text
+  createdAt  DateTime @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, createdAt])
+  @@map("ticket_messages")
+}
+
+// ============================================
+// VOUCHER MODELS
+// ============================================
+
+model Voucher {
+  id            String    @id @default(cuid())
+  code          String    @unique @db.VarChar(50)
+  title         String    @db.VarChar(200)
+  description   String?   @db.Text
+  discountType  String // PERCENT | FIXED
+  discountValue Decimal   @db.Decimal(15, 2) // percent (0-100) or fixed IDR
+  maxDiscount   Decimal?  @db.Decimal(15, 2) // cap for PERCENT type
+  minPurchase   Decimal   @default(0) @db.Decimal(15, 2) // minimum order amount
+  quota         Int? // max total claims (null = unlimited)
+  perUserLimit  Int       @default(1) // max claims per user
+  usedCount     Int       @default(0)
+  startDate     DateTime?
+  endDate       DateTime? // null = no expiry
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  claims VoucherClaim[]
+
+  @@index([code])
+  @@index([isActive, startDate, endDate])
+  @@map("vouchers")
+}
+
+model VoucherClaim {
+  id        String    @id @default(cuid())
+  voucherId String
+  userId    String
+  status    String    @default("CLAIMED") // CLAIMED | USED | EXPIRED
+  claimedAt DateTime  @default(now())
+  usedAt    DateTime?
+  orderId   String? // FK to order when used
+
+  voucher Voucher @relation(fields: [voucherId], references: [id], onDelete: Cascade)
+
+  @@unique([voucherId, userId])
+  @@index([userId, status])
+  @@index([voucherId])
+  @@map("voucher_claims")
+}
+
+// ============================================
+// BRAND REVIEW MODEL
+// ============================================
+
+model BrandReview {
+  id         String   @id @default(cuid())
+  brandSlug  String   @db.VarChar(200) // slug from brand name e.g. "mobile-legends"
+  userId     String
+  userName   String   @db.VarChar(100) // cached display name at time of review
+  rating     Int // 1-5 stars
+  comment    String   @db.VarChar(500)
+  isApproved Boolean  @default(false) // admin moderation — only shown when true
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([brandSlug, userId]) // one review per user per brand
+  @@index([brandSlug, isApproved, createdAt])
+  @@map("brand_reviews")
+}
+
+// ============================================
+// NOTIFICATION MODEL
+// ============================================
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String? // NULL = broadcast to all users
+  type      String // ORDER_STATUS, PROMO, ANNOUNCEMENT, SYSTEM
+  title     String   @db.VarChar(200)
+  message   String   @db.Text
+  icon      String?  @db.VarChar(50) // optional icon key: order, promo, info, warning
+  link      String?  @db.VarChar(500) // optional deep link e.g. /akun/pesanan/WP-xxx
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, isRead, createdAt])
+  @@index([userId, createdAt])
+  @@index([type, createdAt])
+  @@map("notifications")
+}
+
+// ============================================
+// OTP CODE MODEL (WhatsApp OTP Login/Register)
+// ============================================
+
+model OtpCode {
+  id        String   @id @default(cuid())
+  phone     String?  @db.VarChar(20) // null when OTP sent via email
+  email     String?  @db.VarChar(255) // null when OTP sent via WA
+  target    String   @default("whatsapp") @db.VarChar(10) // "whatsapp" | "email"
+  code      String   @db.VarChar(6) // 6-digit OTP
+  purpose   String   @db.VarChar(20) // LOGIN, REGISTER, RESET_PASSWORD
+  attempts  Int      @default(0) // failed verification attempts
+  verified  Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([phone, purpose, createdAt])
+  @@index([email, purpose, createdAt])
+  @@map("otp_codes")
+}
