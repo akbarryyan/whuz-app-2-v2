@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, use } from "react";
+import { useState, useEffect, useRef, use, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Quicksand } from "@/lib/fonts";
 import AppHeader from "@/components/AppHeader";
@@ -39,22 +39,23 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
   const [closing, setClosing] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    loadTicket();
-  }, [id]);
-
-  function loadTicket() {
+  const loadTicket = useCallback(() => {
     setLoading(true);
     fetch(`/api/tickets/${id}`)
       .then((r) => r.json())
       .then((d) => { if (d.success) setTicket(d.data); })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }
+  }, [id]);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(loadTicket, 0);
+    return () => window.clearTimeout(timeout);
+  }, [loadTicket]);
 
   useEffect(() => {
     if (ticket) bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [ticket?.messages.length]);
+  }, [ticket, ticket?.messages.length]);
 
   async function sendReply() {
     if (!reply.trim() || !ticket) return;

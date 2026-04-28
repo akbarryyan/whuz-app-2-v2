@@ -25,7 +25,7 @@ export async function GET() {
     });
 
     // Get user's claims if logged in
-    let userClaims: Record<string, string> = {};
+    const userClaims: Record<string, string> = {};
     if (userId) {
       const claims = await prisma.voucherClaim.findMany({
         where: { userId },

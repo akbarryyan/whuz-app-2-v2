@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Quicksand } from "@/lib/fonts";
 import AppHeader from "@/components/AppHeader";
@@ -33,19 +33,28 @@ export default function TicketsPage() {
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
+  const [now, setNow] = useState(0);
 
-  useEffect(() => {
-    loadTickets();
-  }, []);
-
-  function loadTickets() {
+  const loadTickets = useCallback(() => {
     setLoading(true);
     fetch("/api/tickets")
       .then((r) => r.json())
       .then((d) => { if (d.success) setTickets(d.data); })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }
+  }, []);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(loadTickets, 0);
+    return () => window.clearTimeout(timeout);
+  }, [loadTickets]);
+
+  useEffect(() => {
+    const updateNow = () => setNow(Date.now());
+    updateNow();
+    const interval = window.setInterval(updateNow, 60_000);
+    return () => window.clearInterval(interval);
+  }, []);
 
   async function createTicket() {
     if (!subject.trim() || !message.trim()) return;
@@ -68,7 +77,8 @@ export default function TicketsPage() {
   }
 
   function timeAgo(dateStr: string) {
-    const diff = Date.now() - new Date(dateStr).getTime();
+    const referenceTime = now || new Date(dateStr).getTime();
+    const diff = referenceTime - new Date(dateStr).getTime();
     const mins = Math.floor(diff / 60000);
     if (mins < 1) return "baru saja";
     if (mins < 60) return `${mins}m lalu`;

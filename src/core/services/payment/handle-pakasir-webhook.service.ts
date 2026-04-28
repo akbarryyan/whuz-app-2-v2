@@ -2,7 +2,6 @@ import { OrderRepository } from "@/src/infra/db/repositories/order.repository";
 import { IPaymentGatewayPort } from "@/src/core/ports/payment-gateway.port";
 import { ExecuteProviderPurchaseService } from "@/src/core/services/provider/execute-provider-purchase.service";
 import { OrderStatus, InvoiceStatus, WebhookSource } from "@/src/core/domain/enums/order.enum";
-import { DuplicateWebhookError } from "@/src/core/domain/errors/domain.errors";
 
 export interface PakasirWebhookPayload {
   /** Pakasir sends order_id we passed during createPayment */
@@ -14,7 +13,7 @@ export interface PakasirWebhookPayload {
   total_payment?: number | string;
   method?: string;
   paid_at?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface WebhookHandleResult {
@@ -51,7 +50,7 @@ export class HandlePakasirWebhookService {
     const eventId = `pakasir:${payload.order_id}:${payload.status}`;
 
     // ── Idempotency check ───────────────────────────────────────────────────
-    const { event, duplicate } = await this.orderRepo.findOrCreateWebhookEvent({
+    const { duplicate } = await this.orderRepo.findOrCreateWebhookEvent({
       source: WebhookSource.PAKASIR,
       eventId,
       eventType: payload.status,
@@ -67,8 +66,11 @@ export class HandlePakasirWebhookService {
       const result = await this.processWebhook(payload);
       await this.orderRepo.markWebhookProcessed(eventId);
       return { ...result, duplicate: false };
-    } catch (err: any) {
-      await this.orderRepo.markWebhookProcessed(eventId, err.message);
+    } catch (err: unknown) {
+      await this.orderRepo.markWebhookProcessed(
+        eventId,
+        err instanceof Error ? err.message : "Unknown webhook error"
+      );
       throw err;
     }
   }
@@ -105,8 +107,8 @@ export class HandlePakasirWebhookService {
     let detail;
     try {
       detail = await this.paymentGateway.detailPayment(payload.order_id, amount);
-    } catch (err: any) {
-      throw new Error(`detailPayment failed: ${err.message}`);
+    } catch (err: unknown) {
+      throw new Error(`detailPayment failed: ${err instanceof Error ? err.message : "Unknown error"}`);
     }
 
     if (detail.status !== "completed") {
@@ -123,7 +125,7 @@ export class HandlePakasirWebhookService {
         InvoiceStatus.PAID,
         {
           paidAt: detail.paidAt ?? new Date(),
-          rawPayload: payload,
+          rawPayload: rawPayloadJson(payload),
         }
       );
     }
@@ -136,10 +138,17 @@ export class HandlePakasirWebhookService {
       await this.executeService.execute(order.id);
       console.log(`[Webhook/Pakasir] Order ${order.id} marked PAID → provider executed langsung`);
       return { action: "executed" as const, orderId: order.id };
-    } catch (execErr: any) {
+    } catch (execErr: unknown) {
       // Provider execution gagal tapi order tetap PAID — admin bisa reconcile
-      console.error(`[Webhook/Pakasir] Order ${order.id} PAID tapi execute gagal:`, execErr.message);
-      return { action: "execute_failed" as const, orderId: order.id, executeError: execErr.message };
+      const message = execErr instanceof Error ? execErr.message : "Unknown execute error";
+      console.error(`[Webhook/Pakasir] Order ${order.id} PAID tapi execute gagal:`, message);
+      return { action: "execute_failed" as const, orderId: order.id, executeError: message };
     }
   }
+}
+
+function rawPayloadJson(payload: PakasirWebhookPayload) {
+  return payload as unknown as NonNullable<
+    Parameters<OrderRepository["updateInvoiceStatus"]>[2]
+  >["rawPayload"];
 }

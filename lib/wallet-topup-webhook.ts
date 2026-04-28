@@ -14,9 +14,14 @@ export interface TopupWebhookResult {
   topupId?: string;
 }
 
+export interface WalletTopupWebhookPayload {
+  order_id?: string | number;
+  status?: string;
+  amount?: number | string;
+}
+
 export async function handleWalletTopupWebhook(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  payload: any,
+  payload: WalletTopupWebhookPayload,
   gateway: IPaymentGatewayPort
 ): Promise<TopupWebhookResult> {
   const topupCode: string = String(payload.order_id ?? "");

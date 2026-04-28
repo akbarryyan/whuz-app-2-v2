@@ -26,7 +26,7 @@ export async function POST() {
     const result = await reconcileService.reconcileStaleOrders();
 
     return NextResponse.json({ success: true, data: result });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[POST /api/admin/transactions/reconcile-all]", err);
     return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
   }

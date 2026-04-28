@@ -59,6 +59,7 @@ export default function ProductsPage() {
 
   useEffect(() => {
     loadProducts();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadProducts = async () => {

@@ -113,6 +113,7 @@ export class PakasirAdapter implements IPaymentGatewayPort {
     // status param diabaikan karena SDK tidak mendukung param ini
     _status: "completed" | "expired" = "completed"
   ): Promise<void> {
+    void _status;
     if (this.mode === "production") {
       throw new Error("simulatePayment tidak boleh dipanggil di mode production");
     }

@@ -13,7 +13,10 @@
  */
 
 import { NextResponse } from "next/server";
-import { HandlePakasirWebhookService } from "@/src/core/services/payment/handle-pakasir-webhook.service";
+import {
+  HandlePakasirWebhookService,
+  type PakasirWebhookPayload,
+} from "@/src/core/services/payment/handle-pakasir-webhook.service";
 import { OrderRepository } from "@/src/infra/db/repositories/order.repository";
 import { PakasirAdapter } from "@/src/infra/payment/pakasir/pakasir.adapter";
 import { getPakasirMode } from "@/lib/site-config";
@@ -24,8 +27,7 @@ export const dynamic = "force-dynamic";
 export async function POST(request: Request) {
   // ── 1. Read raw body (needed for logging & idempotency) ──────────────────
   let rawBody: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let payload: any;
+  let payload: PakasirWebhookPayload;
 
   try {
     rawBody = await request.text();

@@ -21,8 +21,9 @@ interface FlashSaleConfig {
   products: FlashSaleProduct[];
 }
 
-function useCountdown(endTime: string) {
+function useCountdown(endTime: string | null) {
   const calcRemaining = () => {
+    if (!endTime) return { h: 0, m: 0, s: 0, expired: false };
     const diff = Math.max(0, new Date(endTime).getTime() - Date.now());
     const h = Math.floor(diff / 3_600_000);
     const m = Math.floor((diff % 3_600_000) / 60_000);
@@ -31,6 +32,7 @@ function useCountdown(endTime: string) {
   };
   const [remaining, setRemaining] = useState(calcRemaining);
   useEffect(() => {
+    setRemaining(calcRemaining());
     const t = setInterval(() => setRemaining(calcRemaining()), 1_000);
     return () => clearInterval(t);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -54,7 +56,7 @@ export default function FlashSale() {
       .catch(() => {});
   }, []);
 
-  const countdown = useCountdown(config?.endTime ?? new Date(Date.now() + 3_600_000).toISOString());
+  const countdown = useCountdown(config?.endTime ?? null);
 
   // Still fetching — render nothing to avoid flash
   if (config === null) return null;

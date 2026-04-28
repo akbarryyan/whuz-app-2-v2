@@ -1,3 +1,4 @@
+import { createHash } from "crypto";
 import {
   IProviderPort,
   ProviderBalance,
@@ -9,6 +10,25 @@ import {
 import { ProviderType, ProviderStatus } from "@/src/core/domain/enums/provider.enum";
 import { ProviderError } from "@/src/core/domain/errors/provider.errors";
 import { getSiteConfigValue } from "@/lib/site-config";
+
+interface VipProductItem {
+  code?: string;
+  name?: string;
+  category?: string;
+  game?: string;
+  brand?: string;
+  type?: string;
+  price?: string | number | { basic?: string | number };
+  status?: string;
+  seller_product_status?: string;
+  description?: string;
+}
+
+interface VipProductsResponse {
+  result?: boolean;
+  message?: string;
+  data?: VipProductItem[];
+}
 
 export class VipResellerAdapter implements IProviderPort {
   private apiKey = "";
@@ -115,7 +135,7 @@ export class VipResellerAdapter implements IProviderPort {
           return [];
         }
 
-        const data = await response.json();
+        const data = (await response.json()) as VipProductsResponse;
 
         if (data.result === false) {
           console.warn(`[VIP] ${url} result=false: ${data.message}`);
@@ -126,16 +146,21 @@ export class VipResellerAdapter implements IProviderPort {
           return [];
         }
 
-        return data.data.map((item: any) => ({
-          providerCode: item.code,
-          providerName: item.name,
-          category: item.category || item.game || defaultType,
-          brand: item.brand || item.game || "Other",
-          type: item.type || defaultType,
-          price: parseFloat(item.price?.basic || item.price || "0"),
-          stock: item.status === "available" || item.seller_product_status === "available",
-          description: item.description || null,
-        }));
+        return data.data
+          .filter(
+            (item): item is VipProductItem & { code: string } =>
+              typeof item.code === "string" && item.code.trim().length > 0
+          )
+          .map((item) => ({
+            providerCode: item.code,
+            providerName: item.name ?? item.code,
+            category: item.category ?? item.game ?? defaultType,
+            brand: item.brand ?? item.game ?? "Other",
+            type: item.type ?? defaultType,
+            price: Number(typeof item.price === "object" ? item.price.basic ?? 0 : item.price ?? 0),
+            stock: item.status === "available" || item.seller_product_status === "available",
+            description: item.description,
+          }));
       } catch (err) {
         console.warn(`[VIP] Failed to fetch ${url}:`, err);
         return [];
@@ -367,8 +392,7 @@ export class VipResellerAdapter implements IProviderPort {
 
     // VIP Reseller signature: MD5(API_ID + API_KEY) or MD5(API_ID + API_KEY + additionalData)
     console.log("[VIP] Generating dynamic signature");
-    const crypto = require("crypto");
-    const md5 = crypto.createHash("md5");
+    const md5 = createHash("md5");
     const signString = additionalData 
       ? this.apiId + this.apiKey + additionalData 
       : this.apiId + this.apiKey;

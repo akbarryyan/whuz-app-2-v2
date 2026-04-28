@@ -3,6 +3,20 @@ import { prisma } from "@/src/infra/db/prisma";
 
 export const dynamic = "force-dynamic";
 
+interface AdminProviderProduct {
+  code: string;
+  name: string;
+  category: string;
+  brand: string;
+  type: string;
+  providerPrice: number;
+  margin: number;
+  sellingPrice: number;
+  stock: boolean;
+  isActive: boolean;
+  description: string | null;
+}
+
 /**
  * GET /api/admin/providers/products
  * Get products from DATABASE only (no external API calls)
@@ -19,7 +33,7 @@ export async function GET() {
     });
 
     // Group by provider
-    const productsData: Record<string, any[]> = {};
+    const productsData: Record<string, AdminProviderProduct[]> = {};
     
     allProducts.forEach((product) => {
       if (!productsData[product.provider]) {

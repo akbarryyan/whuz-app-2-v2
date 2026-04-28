@@ -4,6 +4,11 @@ import { ProviderType } from "@/src/core/domain/enums/provider.enum";
 
 export const dynamic = "force-dynamic";
 
+interface ProviderTestBody {
+  provider?: ProviderType;
+  operations?: string[];
+}
+
 /**
  * POST /api/admin/providers/test
  * Test provider connection and operations
@@ -16,7 +21,7 @@ export const dynamic = "force-dynamic";
  */
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
+    const body = (await request.json()) as ProviderTestBody;
     const { provider, operations = ["checkBalance", "healthCheck"] } = body;
 
     if (!provider || !Object.values(ProviderType).includes(provider)) {
@@ -31,7 +36,7 @@ export async function POST(request: Request) {
     }
 
     const service = new ProviderManagementService();
-    const results: Record<string, any> = {};
+    const results: Record<string, unknown> = {};
 
     // Test check balance
     if (operations.includes("checkBalance")) {

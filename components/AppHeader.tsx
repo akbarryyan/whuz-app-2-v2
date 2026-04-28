@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import NotificationDropdown from "@/components/ui/NotificationDropdown";
 
 interface AppHeaderProps {
@@ -71,7 +72,7 @@ export default function AppHeader({ onBack }: AppHeaderProps) {
         {/* Right icons */}
         <div className="flex items-center flex-shrink-0">
           {/* Chat / CS */}
-          <a
+          <Link
             href="/tickets"
             className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors relative"
             aria-label="Customer Service"
@@ -85,7 +86,7 @@ export default function AppHeader({ onBack }: AppHeaderProps) {
                 {unreadCount > 9 ? "9+" : unreadCount}
               </span>
             )}
-          </a>
+          </Link>
           {/* Bell */}
           <div className="relative">
             <button

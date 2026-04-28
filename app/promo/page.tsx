@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Quicksand } from "@/lib/fonts";
 import AppHeader from "@/components/AppHeader";
@@ -30,7 +30,6 @@ export default function PromoPage() {
   const router = useRouter();
 
   const [promos, setPromos] = useState<Promo[]>([]);
-  const [filtered, setFiltered] = useState<Promo[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [heroImageUrl, setHeroImageUrl] = useState(
@@ -43,24 +42,21 @@ export default function PromoPage() {
       .then((d) => {
         if (d.success) {
           setPromos(d.data);
-          setFiltered(d.data);
           if (d.heroImageUrl) setHeroImageUrl(d.heroImageUrl);
         }
       })
       .finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => {
+  const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    setFiltered(
-      q
-        ? promos.filter(
-            (p) =>
-              p.title.toLowerCase().includes(q) ||
-              (p.description ?? "").toLowerCase().includes(q)
-          )
-        : promos
-    );
+    return q
+      ? promos.filter(
+          (p) =>
+            p.title.toLowerCase().includes(q) ||
+            (p.description ?? "").toLowerCase().includes(q)
+        )
+      : promos;
   }, [search, promos]);
 
   const handleCardClick = (promo: Promo) => {
@@ -94,7 +90,7 @@ export default function PromoPage() {
             {/* Right: discount badge image */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="https://i.postimg.cc/fkmgL3hH/image-percent-4146a3ec.png"
+              src={heroImageUrl}
               alt="promo"
               className="h-16 w-auto -mb-4 object-contain flex-shrink-0"
             />

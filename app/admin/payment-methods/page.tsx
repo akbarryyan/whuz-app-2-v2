@@ -48,7 +48,8 @@ export default function AdminPaymentMethodsPage() {
     }
   };
 
-  useEffect(() => { fetchMethods(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { fetchMethods(); }, []);
 
   const toggleActive = async (item: PaymentMethodRow) => {
     setSaving(item.id);

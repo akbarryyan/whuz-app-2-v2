@@ -42,7 +42,7 @@ export default function MerchantLayout({ children }: { children: React.ReactNode
     return () => {
       active = false;
     };
-  }, [pathname, router]);
+  }, [isRegisterPage, pathname, router]);
 
   if (auth.loading) {
     return (

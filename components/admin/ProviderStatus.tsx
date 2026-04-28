@@ -78,7 +78,6 @@ export default function ProviderStatus() {
   }, []);
 
   const allOnline = data?.providers.every((p) => p.isActive && (p.successRate === null || p.successRate >= 95));
-  const hasError  = data?.providers.some((p) => p.lastError !== null);
 
   return (
     <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm sm:rounded-3xl sm:p-5 overflow-hidden min-w-0">

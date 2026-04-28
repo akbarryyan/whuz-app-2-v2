@@ -4,6 +4,7 @@
  */
 
 import { NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/src/infra/db/prisma";
 
 export const dynamic = "force-dynamic";
@@ -24,8 +25,7 @@ export async function PATCH(
     } = body;
 
     // Build update data selectively
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const data: Record<string, any> = {};
+    const data: Prisma.VoucherUpdateInput = {};
     if (code !== undefined) data.code = (code as string).toUpperCase().trim();
     if (title !== undefined) data.title = title;
     if (description !== undefined) data.description = description || null;

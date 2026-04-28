@@ -14,7 +14,10 @@
  */
 
 import { NextResponse } from "next/server";
-import { HandlePakasirWebhookService } from "@/src/core/services/payment/handle-pakasir-webhook.service";
+import {
+  HandlePakasirWebhookService,
+  type PakasirWebhookPayload,
+} from "@/src/core/services/payment/handle-pakasir-webhook.service";
 import { OrderRepository } from "@/src/infra/db/repositories/order.repository";
 import { PakasirAdapter } from "@/src/infra/payment/pakasir/pakasir.adapter";
 import { handleWalletTopupWebhook } from "@/lib/wallet-topup-webhook";
@@ -29,8 +32,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ received: false }, { status: 400 });
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let payload: any;
+  let payload: PakasirWebhookPayload;
   try {
     payload = JSON.parse(rawBody);
   } catch {

@@ -1,3 +1,4 @@
+import { createHash } from "crypto";
 import {
   IProviderPort,
   ProviderBalance,
@@ -9,6 +10,28 @@ import {
 import { ProviderType, ProviderStatus } from "@/src/core/domain/enums/provider.enum";
 import { ProviderError } from "@/src/core/domain/errors/provider.errors";
 import { getSiteConfigValue } from "@/lib/site-config";
+
+interface DigiflazzProductItem {
+  buyer_sku_code?: string;
+  product_name?: string;
+  category?: string;
+  brand?: string;
+  type?: string;
+  price?: string | number;
+  seller_product_status?: boolean;
+  buyer_product_status?: boolean;
+  desc?: string;
+}
+
+interface DigiflazzProductListResponse {
+  data?: DigiflazzProductItem[];
+}
+
+interface DigiflazzBalanceResponse {
+  data?: {
+    deposit?: string | number;
+  };
+}
 
 export class DigiflazzAdapter implements IProviderPort {
   private apiKey = "";
@@ -53,11 +76,11 @@ export class DigiflazzAdapter implements IProviderPort {
         );
       }
 
-      const data = await response.json();
+      const data = (await response.json()) as DigiflazzBalanceResponse;
 
       return {
         provider: ProviderType.DIGIFLAZZ,
-        balance: parseFloat(data.data?.deposit || "0"),
+        balance: Number(data.data?.deposit ?? 0),
         currency: "IDR",
         lastUpdated: new Date(),
       };
@@ -91,22 +114,27 @@ export class DigiflazzAdapter implements IProviderPort {
         );
       }
 
-      const data = await response.json();
+      const data = (await response.json()) as DigiflazzProductListResponse;
 
       if (!data.data || !Array.isArray(data.data)) {
         return [];
       }
 
-      return data.data.map((item: any) => ({
-        providerCode: item.buyer_sku_code,
-        providerName: item.product_name,
-        category: item.category,
-        brand: item.brand,
-        type: item.type,
-        price: parseFloat(item.price),
-        stock: item.seller_product_status === true || item.buyer_product_status === true,
-        description: item.desc,
-      }));
+      return data.data
+        .filter(
+          (item): item is DigiflazzProductItem & { buyer_sku_code: string } =>
+            typeof item.buyer_sku_code === "string" && item.buyer_sku_code.trim().length > 0
+        )
+        .map((item) => ({
+          providerCode: item.buyer_sku_code,
+          providerName: item.product_name ?? item.buyer_sku_code,
+          category: item.category ?? "Other",
+          brand: item.brand ?? "Other",
+          type: item.type ?? "prepaid",
+          price: Number(item.price ?? 0),
+          stock: item.seller_product_status === true || item.buyer_product_status === true,
+          description: item.desc,
+        }));
     } catch (error) {
       throw new ProviderError(
         `Failed to get Digiflazz products: ${error instanceof Error ? error.message : "Unknown error"}`,
@@ -237,8 +265,7 @@ export class DigiflazzAdapter implements IProviderPort {
   }
 
   private generateSignature(refId: string): string {
-    const crypto = require("crypto");
-    const md5 = crypto.createHash("md5");
+    const md5 = createHash("md5");
     md5.update(this.username + this.apiKey + refId);
     return md5.digest("hex");
   }

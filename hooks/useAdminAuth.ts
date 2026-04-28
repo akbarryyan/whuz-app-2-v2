@@ -19,12 +19,11 @@ export function useAdminAuth() {
   const router = useRouter();
   const pathname = usePathname();
   const [user, setUser] = useState<AdminUser | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => pathname !== "/admin/login");
 
   useEffect(() => {
     // Skip auth check on the login page itself
     if (pathname === "/admin/login") {
-      setLoading(false);
       return;
     }
 

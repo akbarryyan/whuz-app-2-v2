@@ -35,6 +35,19 @@ html {
   --font-mono: var(--font-display);
 }
 
+@theme {
+  /*
+   * Whuzpay is designed as a mobile-first storefront. Keep the mobile layout
+   * active on desktop-sized browser windows by moving Tailwind breakpoints far
+   * beyond realistic viewport widths.
+   */
+  --breakpoint-sm: 9999rem;
+  --breakpoint-md: 10000rem;
+  --breakpoint-lg: 10001rem;
+  --breakpoint-xl: 10002rem;
+  --breakpoint-2xl: 10003rem;
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0b0f14;

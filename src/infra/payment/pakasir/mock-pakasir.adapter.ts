@@ -68,6 +68,8 @@ export class MockPakasirAdapter implements IPaymentGatewayPort {
   }
 
   async cancelPayment(_orderId: string, _amount: number): Promise<void> {
+    void _orderId;
+    void _amount;
     // no-op in mock
   }
 
@@ -76,6 +78,9 @@ export class MockPakasirAdapter implements IPaymentGatewayPort {
     _amount: number,
     _status: "completed" | "expired" = "completed"
   ): Promise<void> {
+    void _orderId;
+    void _amount;
+    void _status;
     // In mock mode, simulate is a no-op (the mock detailPayment already returns configured scenario)
     const delay = Number(process.env.MOCK_PROVIDER_DELAY_MS ?? 300);
     await new Promise((r) => setTimeout(r, delay));

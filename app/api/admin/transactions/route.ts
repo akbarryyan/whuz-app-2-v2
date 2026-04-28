@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/src/infra/db/prisma";
 
 export const dynamic = "force-dynamic";
@@ -28,7 +29,7 @@ export async function GET(request: Request) {
     const pageSize      = Math.max(1, parseInt(pageSizeParam ?? "10", 10));
 
     // Build where clause
-    const where: any = {};
+    const where: Prisma.OrderWhereInput = {};
 
     if (status)        where.status        = status;
     if (paymentMethod) where.paymentMethod = paymentMethod;

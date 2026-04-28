@@ -32,7 +32,7 @@ export async function POST(
     const result = await reconcileService.reconcile(id);
 
     return NextResponse.json({ success: true, data: result });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[POST /api/admin/transactions/[id]/reconcile]", err);
     return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
   }

@@ -5,6 +5,16 @@ import { isOtpAuthEnabled } from "@/lib/auth-config";
 import { prisma } from "@/src/infra/db/prisma";
 import { normalizePhone, isValidPhone } from "@/lib/fonnte";
 
+interface LoginUser {
+  id: string;
+  email: string | null;
+  phone: string | null;
+  name: string | null;
+  role: string;
+  passwordHash: string | null;
+  isActive: boolean;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -35,8 +45,7 @@ export async function POST(req: NextRequest) {
     }
 
     // --- Cari user ---
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let user: any;
+    let user: LoginUser | null;
 
     if (method === "email") {
       const email = identifier.toLowerCase().trim();

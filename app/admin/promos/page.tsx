@@ -254,7 +254,7 @@ export default function AdminPromosPage() {
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
             <div className="px-5 py-4 border-b border-slate-100">
               <h2 className="text-sm font-bold text-slate-700">Daftar Promo</h2>
-              <p className="text-[11px] text-slate-400 mt-0.5">Urutkan berdasarkan kolom "Urutan Tampil", promo nonaktif tidak ditampilkan ke pengguna.</p>
+              <p className="text-[11px] text-slate-400 mt-0.5">Urutkan berdasarkan kolom &quot;Urutan Tampil&quot;, promo nonaktif tidak ditampilkan ke pengguna.</p>
             </div>
             {loading ? (
               <div className="p-6 space-y-4">
@@ -270,7 +270,7 @@ export default function AdminPromosPage() {
               </div>
             ) : promos.length === 0 ? (
               <div className="py-16 text-center">
-                <p className="text-slate-400 text-sm">Belum ada promo. Klik "+ Tambah Promo" untuk mulai.</p>
+                <p className="text-slate-400 text-sm">Belum ada promo. Klik &quot;+ Tambah Promo&quot; untuk mulai.</p>
               </div>
             ) : (
               <div className="divide-y divide-slate-100">

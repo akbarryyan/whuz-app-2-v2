@@ -166,10 +166,10 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ success: true, data: result });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[wallet POST]", err);
     return NextResponse.json(
-      { success: false, error: err.message ?? "Gagal memproses operasi wallet" },
+      { success: false, error: err instanceof Error ? err.message : "Gagal memproses operasi wallet" },
       { status: 400 }
     );
   }

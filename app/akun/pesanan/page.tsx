@@ -94,7 +94,7 @@ function PesananPageContent() {
 
       // Case 1: URL has orderCode + token → load single order (guest deep-link)
       if (orderCodeParam) {
-        await loadSingleOrder(orderCodeParam, tokenParam ?? undefined, loggedIn);
+        await loadSingleOrder(orderCodeParam, tokenParam ?? undefined);
         setLoading(false);
         return;
       }
@@ -113,7 +113,7 @@ function PesananPageContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const loadSingleOrder = useCallback(async (code: string, token?: string, loggedIn?: boolean) => {
+  const loadSingleOrder = useCallback(async (code: string, token?: string) => {
     try {
       const qs = token ? `?token=${encodeURIComponent(token)}` : "";
       const res = await fetch(`/api/orders/${encodeURIComponent(code)}${qs}`);

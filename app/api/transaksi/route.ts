@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import { getSession } from "@/lib/session";
 import { prisma } from "@/src/infra/db/prisma";
 import { syncExpiredOrdersForUser } from "@/src/core/services/order/sync-expired-orders.service";
@@ -31,17 +32,16 @@ export async function GET(req: NextRequest) {
     const statuses = TAB_STATUSES[tab] ?? [];
 
     // Build where clause
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const where: any = {
+    const where: Prisma.OrderWhereInput = {
       userId: session.userId,
       ...(statuses.length > 0 ? { status: { in: statuses } } : { status: { in: [] } }),
     };
 
     if (q) {
       where.OR = [
-        { orderCode: { contains: q, mode: "insensitive" } },
-        { product: { name: { contains: q, mode: "insensitive" } } },
-        { product: { brand: { contains: q, mode: "insensitive" } } },
+        { orderCode: { contains: q } },
+        { product: { name: { contains: q } } },
+        { product: { brand: { contains: q } } },
       ];
     }
 

@@ -4,6 +4,15 @@ import { getSiteName } from "@/lib/site-config";
 import { prisma } from "@/src/infra/db/prisma";
 import { normalizePhone, isValidPhone } from "@/lib/fonnte";
 
+interface OtpAuthUser {
+  id: string;
+  email: string | null;
+  phone: string | null;
+  name: string | null;
+  role: string;
+  isActive?: boolean;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const siteName = await getSiteName();
@@ -154,8 +163,7 @@ export async function POST(req: NextRequest) {
       data: { verified: true },
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let user: any;
+    let user: OtpAuthUser | null;
 
     if (purpose === "LOGIN") {
       // --- Login: cari user berdasarkan target ---

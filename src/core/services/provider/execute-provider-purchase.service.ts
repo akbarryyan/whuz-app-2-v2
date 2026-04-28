@@ -97,7 +97,7 @@ export class ExecuteProviderPurchaseService {
       orderId,
       provider: providerType,
       action: "purchase:request",
-      request: purchaseReq,
+      request: providerLogJson(purchaseReq),
       success: true,
     });
 
@@ -111,7 +111,7 @@ export class ExecuteProviderPurchaseService {
         orderId,
         provider: providerType,
         action: "purchase:response",
-        response: { error: message },
+        response: providerLogJson({ error: message }),
         success: false,
         errorMessage: message,
       });
@@ -125,7 +125,7 @@ export class ExecuteProviderPurchaseService {
       orderId,
       provider: providerType,
       action: "purchase:response",
-      response: result.rawResponse,
+      response: providerLogJson(result.rawResponse),
       success: result.success,
       errorMessage: result.success ? undefined : result.message,
     });
@@ -164,4 +164,10 @@ export class ExecuteProviderPurchaseService {
       console.log(`[Execute] Order ${orderId} FAILED — ${result.message}`);
     }
   }
+}
+
+function providerLogJson(value: unknown) {
+  return value as NonNullable<
+    Parameters<OrderRepository["logProviderAction"]>[0]
+  >["response"];
 }

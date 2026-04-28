@@ -29,6 +29,7 @@ export default function AdminTicketsPage() {
   const [tickets, setTickets] = useState<TicketSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>("ALL");
+  const [now, setNow] = useState(0);
 
   useEffect(() => {
     fetch("/api/admin/tickets")
@@ -36,6 +37,13 @@ export default function AdminTicketsPage() {
       .then((d) => { if (d.success) setTickets(d.data); })
       .catch(() => {})
       .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    const updateNow = () => setNow(Date.now());
+    updateNow();
+    const interval = window.setInterval(updateNow, 60_000);
+    return () => window.clearInterval(interval);
   }, []);
 
   const filtered = filter === "ALL" ? tickets : tickets.filter((t) => t.status === filter);
@@ -47,7 +55,8 @@ export default function AdminTicketsPage() {
   };
 
   function timeAgo(dateStr: string) {
-    const diff = Date.now() - new Date(dateStr).getTime();
+    const referenceTime = now || new Date(dateStr).getTime();
+    const diff = referenceTime - new Date(dateStr).getTime();
     const mins = Math.floor(diff / 60000);
     if (mins < 1) return "baru saja";
     if (mins < 60) return `${mins}m lalu`;

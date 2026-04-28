@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, use } from "react";
+import { useState, useEffect, useRef, use, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/admin/Sidebar";
 import Header from "@/components/admin/Header";
@@ -41,20 +41,23 @@ export default function AdminTicketDetailPage({ params }: { params: Promise<{ id
   const bottomRef = useRef<HTMLDivElement>(null);
   const toast = useToast();
 
-  useEffect(() => { loadTicket(); }, [id]);
-
-  function loadTicket() {
+  const loadTicket = useCallback(() => {
     setLoading(true);
     fetch(`/api/admin/tickets/${id}`)
       .then((r) => r.json())
       .then((d) => { if (d.success) setTicket(d.data); })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }
+  }, [id]);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(loadTicket, 0);
+    return () => window.clearTimeout(timeout);
+  }, [loadTicket]);
 
   useEffect(() => {
     if (ticket) bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [ticket?.messages.length]);
+  }, [ticket, ticket?.messages.length]);
 
   async function sendReply() {
     if (!reply.trim()) return;

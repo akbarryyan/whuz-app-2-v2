@@ -1,11 +1,12 @@
 import { prisma } from "@/src/infra/db/prisma";
 import { ProviderType } from "@/src/core/domain/enums/provider.enum";
+import { Prisma } from "@prisma/client";
 
 export interface ProviderLogData {
   provider: string;
   action: string;
-  request?: any;
-  response?: any;
+  request?: Prisma.InputJsonValue | typeof Prisma.JsonNull;
+  response?: Prisma.InputJsonValue | typeof Prisma.JsonNull;
   success: boolean;
   errorMessage?: string;
   latency: number;
@@ -40,8 +41,8 @@ export class ProviderRepository {
         data: {
           provider: data.provider,
           action: data.action,
-          request: data.request || null,
-          response: data.response || null,
+          request: data.request ?? Prisma.JsonNull,
+          response: data.response ?? Prisma.JsonNull,
           success: data.success,
           errorMessage: data.errorMessage || null,
           latency: data.latency,

@@ -156,7 +156,7 @@ function OrderDetailPageContent() {
     updateRemaining();
     const interval = setInterval(updateRemaining, 1000);
     return () => clearInterval(interval);
-  }, [order?.paymentInvoice?.expiredAt, order?.paymentInvoice?.status]);
+  }, [order?.paymentInvoice, order?.paymentInvoice?.expiredAt, order?.paymentInvoice?.status]);
 
   // ── Skeleton ──────────────────────────────────────────────────────────────
   if (loading) {
@@ -615,6 +615,7 @@ function OrderDetailPageContent() {
                       )}
                       <div className="mt-4 flex justify-center">
                         <div className={`rounded-[28px] bg-white p-3 shadow-sm transition lg:shadow-none ${isQrisExpired ? "opacity-50 grayscale" : ""}`}>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={buildQrImageUrl(order.paymentInvoice.paymentNumber)}
                             alt="QRIS Payment"

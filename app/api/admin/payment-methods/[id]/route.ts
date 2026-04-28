@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/src/infra/db/prisma";
 
 export const dynamic = "force-dynamic";
@@ -13,14 +14,20 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
-    const body = await req.json();
+    const body = (await req.json()) as Partial<{
+      label: string;
+      group: string;
+      imageUrl: string | null;
+      isActive: boolean;
+      sortOrder: number;
+    }>;
 
-    const allowed = ["label", "group", "imageUrl", "isActive", "sortOrder"];
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const data: Record<string, any> = {};
-    for (const k of allowed) {
-      if (k in body) data[k] = body[k];
-    }
+    const data: Prisma.PaymentMethodUpdateInput = {};
+    if (body.label !== undefined) data.label = body.label;
+    if (body.group !== undefined) data.group = body.group;
+    if (body.imageUrl !== undefined) data.imageUrl = body.imageUrl;
+    if (body.isActive !== undefined) data.isActive = body.isActive;
+    if (body.sortOrder !== undefined) data.sortOrder = body.sortOrder;
 
     if (Object.keys(data).length === 0) {
       return NextResponse.json({ success: false, error: "Tidak ada field yang diubah." }, { status: 400 });

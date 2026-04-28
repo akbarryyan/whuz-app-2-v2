@@ -31,12 +31,12 @@ export async function POST(
       success: true,
       data: result,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Check balance error:", error);
     return NextResponse.json(
       { 
         success: false, 
-        error: error.message || "Failed to check balance" 
+        error: error instanceof Error ? error.message : "Failed to check balance"
       },
       { status: 500 }
     );

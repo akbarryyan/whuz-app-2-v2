@@ -3,6 +3,13 @@ import { ProviderRepository } from "@/src/infra/db/repositories/provider.reposit
 
 const providerRepo = new ProviderRepository();
 
+interface ProviderSettingsBody {
+  provider?: string;
+  defaultMargin?: number;
+  marginType?: "FIXED" | "PERCENTAGE" | string;
+  isActive?: boolean;
+}
+
 /**
  * GET /api/admin/providers/settings
  * Get all provider settings (margin configuration)
@@ -22,12 +29,12 @@ export async function GET() {
       success: true,
       data: serializedSettings,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Get settings error:", error);
     return NextResponse.json(
       { 
         success: false, 
-        error: error.message || "Failed to get provider settings" 
+        error: error instanceof Error ? error.message : "Failed to get provider settings"
       },
       { status: 500 }
     );
@@ -47,7 +54,7 @@ export async function GET() {
  */
 export async function PUT(request: NextRequest) {
   try {
-    const body = await request.json();
+    const body = (await request.json()) as ProviderSettingsBody;
 
     // Validate required fields
     if (!body.provider || body.defaultMargin === undefined || !body.marginType) {
@@ -60,8 +67,10 @@ export async function PUT(request: NextRequest) {
       );
     }
 
+    const marginType = body.marginType;
+
     // Validate marginType
-    if (!["FIXED", "PERCENTAGE"].includes(body.marginType)) {
+    if (marginType !== "FIXED" && marginType !== "PERCENTAGE") {
       return NextResponse.json(
         { 
           success: false, 
@@ -85,7 +94,7 @@ export async function PUT(request: NextRequest) {
     const setting = await providerRepo.upsertProviderSetting({
       provider: body.provider,
       defaultMargin: body.defaultMargin,
-      marginType: body.marginType,
+      marginType,
       isActive: body.isActive !== undefined ? body.isActive : true,
     });
 
@@ -100,12 +109,12 @@ export async function PUT(request: NextRequest) {
       success: true,
       data: serializedSetting,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Update settings error:", error);
     return NextResponse.json(
       { 
         success: false, 
-        error: error.message || "Failed to update provider settings" 
+        error: error instanceof Error ? error.message : "Failed to update provider settings"
       },
       { status: 500 }
     );

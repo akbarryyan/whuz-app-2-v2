@@ -86,10 +86,9 @@ async function main() {
   ];
 
   let created = 0;
-  let updated = 0;
 
   for (const v of vouchers) {
-    const { endDate, ...rest } = v as typeof v & { endDate?: Date };
+    const endDate = "endDate" in v ? v.endDate : undefined;
     const result = await prisma.voucher.upsert({
       where: { code: v.code },
       update: {

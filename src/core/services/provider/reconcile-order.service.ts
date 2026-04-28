@@ -81,7 +81,7 @@ export class ReconcileOrderService {
       orderId,
       provider: providerType,
       action: "reconcile:checkStatus",
-      request: { providerRef: order.providerRef },
+      request: providerLogJson({ providerRef: order.providerRef }),
       success: true,
     });
 
@@ -99,7 +99,7 @@ export class ReconcileOrderService {
       orderId,
       provider: providerType,
       action: "reconcile:response",
-      response: checkResult.rawResponse,
+      response: providerLogJson(checkResult.rawResponse),
       success: checkResult.success,
     });
 
@@ -158,4 +158,10 @@ export class ReconcileOrderService {
 
     return { processed, errors };
   }
+}
+
+function providerLogJson(value: unknown) {
+  return value as NonNullable<
+    Parameters<OrderRepository["logProviderAction"]>[0]
+  >["response"];
 }

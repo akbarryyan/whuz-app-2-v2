@@ -303,7 +303,7 @@ export default function FlashSalePage() {
                   <div className="px-5 py-10 text-center">
                     <div className="text-3xl mb-2">⚡</div>
                     <p className="text-sm font-semibold text-slate-500 mb-1">Belum ada produk</p>
-                    <p className="text-xs text-slate-400">Klik "+ Tambah" untuk menambahkan produk flash sale.</p>
+                    <p className="text-xs text-slate-400">Klik &quot;+ Tambah&quot; untuk menambahkan produk flash sale.</p>
                   </div>
                 ) : (
                   <div className="divide-y divide-slate-50">

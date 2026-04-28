@@ -468,11 +468,14 @@ export default function JokiPage() {
                     }`}
                   >
                     {b.imageUrl ? (
-                      <img
-                        src={b.imageUrl}
-                        alt={b.name}
-                        className="w-12 h-12 object-cover rounded-lg"
-                      />
+                      <>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={b.imageUrl}
+                          alt={b.name}
+                          className="w-12 h-12 object-cover rounded-lg"
+                        />
+                      </>
                     ) : (
                       <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-lg font-bold">
                         {b.name.slice(0, 2).toUpperCase()}
@@ -583,7 +586,7 @@ export default function JokiPage() {
                   className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 resize-none"
                 />
                 <p className="text-xs text-slate-400 mt-1">
-                  Format: Login | Nickname | Hero | Catatan (pisahkan dengan "|")
+                  Format: Login | Nickname | Hero | Catatan (pisahkan dengan &quot;|&quot;)
                 </p>
               </div>
 
@@ -851,6 +854,7 @@ export default function JokiPage() {
                         }`}
                       >
                         {m.imageUrl && (
+                          // eslint-disable-next-line @next/next/no-img-element
                           <img src={m.imageUrl} alt={m.label} className="w-8 h-8 object-contain rounded-md" />
                         )}
                         <span className="text-sm font-semibold text-slate-700">{m.label}</span>

@@ -21,7 +21,7 @@ export interface ProviderProduct {
 export interface ProviderPurchaseRequest {
   productCode: string;
   target: string; // phone number, game ID, etc.
-  additionalData?: Record<string, any>;
+  additionalData?: Record<string, unknown>;
 }
 
 export interface ProviderPurchaseResponse {
@@ -31,7 +31,7 @@ export interface ProviderPurchaseResponse {
   transactionId: string;
   serialNumber?: string;
   message: string;
-  rawResponse: any;
+  rawResponse: unknown;
 }
 
 export interface ProviderHealthCheck {

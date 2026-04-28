@@ -46,8 +46,11 @@ export async function POST(request: Request) {
       success: true,
       message: `Simulated ${parsed.data.status} for order ${parsed.data.order_id}`,
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[POST /api/dev/pakasir/simulate]", err);
-    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: err instanceof Error ? err.message : "Gagal simulasi pembayaran" },
+      { status: 500 }
+    );
   }
 }

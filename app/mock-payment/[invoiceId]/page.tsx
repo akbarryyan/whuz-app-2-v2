@@ -267,7 +267,7 @@ function MockPaymentPageContent({
           <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3">
             <p className="text-[11px] font-bold text-blue-700 mb-1.5">Ini adalah halaman simulasi</p>
             <p className="text-[11px] text-blue-600 leading-relaxed">
-              Klik <strong>"Simulasikan Pembayaran"</strong> untuk mensimulasikan
+              Klik <strong>&quot;Simulasikan Pembayaran&quot;</strong> untuk mensimulasikan
               pembayaran berhasil dan kembali ke halaman pesanan.
             </p>
           </div>

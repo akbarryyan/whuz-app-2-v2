@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import Link from "next/link";
 import Sidebar from "@/components/admin/Sidebar";
 import Header from "@/components/admin/Header";
 import { ToastContainer } from "@/components/ui/Toast";
@@ -214,12 +215,12 @@ export default function MembersPage() {
             >
               {importing ? "Mengimpor..." : "Import Excel"}
             </button>
-            <a
+            <Link
               href="/api/admin/users/import/template"
               className="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
             >
               Download Template
-            </a>
+            </Link>
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs text-slate-500 shadow-sm">

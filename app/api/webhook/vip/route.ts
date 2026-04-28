@@ -33,13 +33,24 @@ export const dynamic = "force-dynamic";
 // IP resmi VIP Reseller yang boleh kirim webhook
 const VIP_WEBHOOK_IP = "178.248.73.218";
 
+interface VipWebhookItem {
+  trxid?: string;
+  status?: string;
+  note?: string;
+}
+
+interface VipWebhookPayload {
+  data?: VipWebhookItem | VipWebhookItem[];
+  [key: string]: unknown;
+}
+
 function ok() {
   return NextResponse.json({ success: true }, { status: 200 });
 }
 
 export async function POST(req: NextRequest) {
   // ── 1. Parse body ─────────────────────────────────────────────────────────
-  let payload: any;
+  let payload: VipWebhookPayload;
   try {
     payload = await req.json();
   } catch {
@@ -76,6 +87,10 @@ export async function POST(req: NextRequest) {
 
   // Normalise: pastikan item selalu berupa single object
   const item = Array.isArray(payload.data) ? payload.data[0] : payload.data;
+  if (!item) {
+    console.warn("[Webhook/VIP] Empty data in webhook payload");
+    return ok();
+  }
   const { trxid, status: vipStatus, note } = item;
 
   if (!trxid) {

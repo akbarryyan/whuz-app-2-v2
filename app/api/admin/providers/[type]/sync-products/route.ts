@@ -35,12 +35,12 @@ export async function POST(
         products: result,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Sync products error:", error);
     return NextResponse.json(
       { 
         success: false, 
-        error: error.message || "Failed to sync products" 
+        error: error instanceof Error ? error.message : "Failed to sync products"
       },
       { status: 500 }
     );
