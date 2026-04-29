@@ -17,12 +17,22 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const [siteName, setSiteName]   = useState("Website");
   const [maintEnabled, setMaintEnabled] = useState(false);
   const [maintLoading, setMaintLoading] = useState(false);
+  const [desktopOpen, setDesktopOpen] = useState(false);
 
   useEffect(() => {
     fetch("/api/admin/maintenance")
       .then((r) => r.json())
       .then((d) => { if (typeof d.enabled === "boolean") setMaintEnabled(d.enabled); })
       .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const updateDesktopState = () => setDesktopOpen(window.innerWidth >= 1024);
+
+    updateDesktopState();
+    window.addEventListener("resize", updateDesktopState);
+
+    return () => window.removeEventListener("resize", updateDesktopState);
   }, []);
 
   async function toggleMaintenance() {
@@ -60,7 +70,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       {/* Sidebar */}
       <aside
         className={`admin-sidebar fixed left-0 top-0 z-50 flex h-full w-64 transform flex-col bg-white p-6 shadow-xl transition-transform duration-300 ease-in-out lg:h-screen lg:shadow-sm ${
-          isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+          isOpen || desktopOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
       >
         <div className="flex items-center justify-between">
