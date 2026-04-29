@@ -85,16 +85,34 @@ body {
   display: none;
 }
 
+.admin-sidebar {
+  background: #ffffff !important;
+  color: #0f172a;
+}
+
+.admin-shell {
+  background: #f5f7fb;
+}
+
 @media (min-width: 1024px) {
+  body:has(.admin-shell) {
+    background: #f5f7fb;
+  }
+
   .admin-shell {
     padding-left: 16rem;
   }
 
   .admin-sidebar {
-    background: #ffffff;
+    background: #ffffff !important;
+    color: #0f172a;
+    display: flex !important;
     height: 100vh;
+    left: 0 !important;
+    opacity: 1 !important;
     translate: 0 0 !important;
-    transform: translateX(0) !important;
+    transform: none !important;
+    visibility: visible !important;
     box-shadow: 0 1px 2px rgb(15 23 42 / 0.08);
   }
 
