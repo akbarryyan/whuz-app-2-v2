@@ -40,7 +40,7 @@ export default function AppHeader({ onBack }: AppHeaderProps) {
   }, []);
 
   return (
-    <header className="fixed inset-x-0 top-0 z-40 bg-[#003D99] lg:bg-[#171D25]">
+    <header className="fixed left-1/2 top-0 z-40 w-full max-w-[480px] -translate-x-1/2 bg-[#003D99] lg:max-w-7xl lg:bg-[#171D25]">
       <div className="mx-auto flex w-full max-w-[480px] items-center gap-2 px-3 py-3 lg:max-w-7xl lg:px-5">
         {/* Back button or spacer */}
         {onBack ? (

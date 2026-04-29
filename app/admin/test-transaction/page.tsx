@@ -71,7 +71,7 @@ const STEP_LABELS: Record<string, string> = {
   mark_processing: "Proses Provider",
   provider_purchase: "Transaksi Provider",
   finalize_order: "Finalisasi Order",
-  create_invoice: "Buat Invoice Poppay",
+  create_invoice: "Buat Invoice Gateway",
 };
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -90,7 +90,7 @@ export default function TestTransactionPage() {
   const [targetNumber, setTargetNumber] = useState("");
   const [targetZone, setTargetZone] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<"WALLET" | "PAYMENT_GATEWAY">("WALLET");
-  const [pgMethod, setPgMethod] = useState("qris");
+  const [pgMethod, setPgMethod] = useState("midtrans_qris");
   const [filterProvider, setFilterProvider] = useState("ALL");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -468,22 +468,25 @@ export default function TestTransactionPage() {
               {paymentMethod === "PAYMENT_GATEWAY" && (
                 <div>
                   <label className="mb-1.5 block text-xs font-medium text-slate-500 uppercase tracking-wide">
-                    Metode Poppay
+                    Metode Gateway
                   </label>
                   <select
                     value={pgMethod}
                     onChange={(e) => setPgMethod(e.target.value)}
                     className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="qris">QRIS</option>
+                    <option value="midtrans_qris">Midtrans QRIS</option>
+                    <option value="midtrans_bca_va">Midtrans BCA VA</option>
+                    <option value="midtrans_bni_va">Midtrans BNI VA</option>
+                    <option value="midtrans_bri_va">Midtrans BRI VA</option>
+                    <option value="pakasir_all">Pakasir</option>
                   </select>
                 </div>
               )}
 
               {paymentMethod === "PAYMENT_GATEWAY" && (
                 <p className="mt-2 text-xs text-slate-400">
-                  Invoice QRIS dibuat di Poppay — callback akan masuk ke{" "}
-                  <code className="font-mono">/api/webhook/poppay</code> setelah bayar.
+                  Invoice dibuat melalui gateway terpilih. Callback masuk ke endpoint Midtrans atau Pakasir sesuai gateway.
                 </p>
               )}
             </div>
@@ -651,7 +654,7 @@ export default function TestTransactionPage() {
                     <span className="text-xs text-slate-400">Mode</span>
                     <span
                       className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold mt-0.5 ${
-                        result.mode === "poppay" || result.mode === "real"
+                        result.mode === "midtrans" || result.mode === "pakasir" || result.mode === "real"
                           ? "bg-emerald-100 text-emerald-700"
                           : "bg-amber-100 text-amber-700"
                       }`}
@@ -678,7 +681,7 @@ export default function TestTransactionPage() {
                       </a>
                     )}
                     <p className="text-center text-xs text-slate-400">
-                      Setelah customer membayar, Poppay akan mengirim callback ke <code className="font-mono">/api/webhook/poppay</code>.
+                      Setelah customer membayar, gateway akan mengirim callback ke endpoint webhook masing-masing.
                     </p>
                   </div>
                 )}

@@ -5,6 +5,7 @@ import {
   CreatePaymentResult,
   DetailPaymentResult,
 } from "@/src/core/ports/payment-gateway.port";
+import { getSiteConfigValue } from "@/lib/site-config";
 
 /**
  * Pakasir Payment Gateway Adapter
@@ -18,7 +19,6 @@ import {
  */
 export class PakasirAdapter implements IPaymentGatewayPort {
   gatewayName = "PAKASIR";
-  private readonly client: Pakasir;
   private readonly mode: "sandbox" | "production";
 
   /**
@@ -28,29 +28,14 @@ export class PakasirAdapter implements IPaymentGatewayPort {
    */
   constructor(mode: "sandbox" | "production" = "sandbox") {
     this.mode = mode;
-
-    const slug =
-      mode === "production"
-        ? (process.env.PAKASIR_SLUG ?? "")
-        : (process.env.PAKASIR_SANDBOX_SLUG ?? process.env.PAKASIR_SLUG ?? "");
-
-    const apikey =
-      mode === "production"
-        ? (process.env.PAKASIR_API_KEY ?? "")
-        : (process.env.PAKASIR_SANDBOX_API_KEY ?? process.env.PAKASIR_API_KEY ?? "");
-
-    if (!slug || !apikey) {
-      console.warn(`[Pakasir:${mode}] PAKASIR_SLUG atau PAKASIR_API_KEY belum diset di .env`);
-    }
-
-    this.client = new Pakasir({ slug, apikey });
   }
 
   // ── IPaymentGatewayPort ──────────────────────────────────────────────────
 
   async createPayment(input: CreatePaymentInput): Promise<CreatePaymentResult> {
+    const client = await this.getClient();
     const method = (input.method ?? "all") as PakasirMethod;
-    const raw = await this.client.createPayment(
+    const raw = await client.createPayment(
       method,
       input.orderId,
       input.amount,
@@ -74,7 +59,8 @@ export class PakasirAdapter implements IPaymentGatewayPort {
   }
 
   async detailPayment(orderId: string, amount: number): Promise<DetailPaymentResult> {
-    const raw = await this.client.detailPayment(orderId, amount);
+    const client = await this.getClient();
+    const raw = await client.detailPayment(orderId, amount);
 
     const statusMap: Record<string, DetailPaymentResult["status"]> = {
       completed: "completed",
@@ -101,7 +87,8 @@ export class PakasirAdapter implements IPaymentGatewayPort {
   }
 
   async cancelPayment(orderId: string, amount: number): Promise<void> {
-    await this.client.cancelPayment(orderId, amount);
+    const client = await this.getClient();
+    await client.cancelPayment(orderId, amount);
   }
 
   /**
@@ -117,6 +104,25 @@ export class PakasirAdapter implements IPaymentGatewayPort {
     if (this.mode === "production") {
       throw new Error("simulatePayment tidak boleh dipanggil di mode production");
     }
-    await this.client.simulationPayment(orderId, amount);
+    const client = await this.getClient();
+    await client.simulationPayment(orderId, amount);
+  }
+
+  private async getClient(): Promise<Pakasir> {
+    const slug =
+      this.mode === "production"
+        ? await getSiteConfigValue("PAKASIR_SLUG")
+        : (await getSiteConfigValue("PAKASIR_SANDBOX_SLUG")) || (await getSiteConfigValue("PAKASIR_SLUG"));
+
+    const apikey =
+      this.mode === "production"
+        ? await getSiteConfigValue("PAKASIR_API_KEY")
+        : (await getSiteConfigValue("PAKASIR_SANDBOX_API_KEY")) || (await getSiteConfigValue("PAKASIR_API_KEY"));
+
+    if (!slug || !apikey) {
+      console.warn(`[Pakasir:${this.mode}] PAKASIR_SLUG atau PAKASIR_API_KEY belum diset.`);
+    }
+
+    return new Pakasir({ slug, apikey });
   }
 }

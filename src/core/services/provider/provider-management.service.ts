@@ -1,4 +1,4 @@
-import { ProviderFactory } from "@/src/infra/providers/provider.factory";
+import { ProviderFactory, initProviderModesFromDB } from "@/src/infra/providers/provider.factory";
 import { ProviderType, ProviderMode, ProviderStatus } from "@/src/core/domain/enums/provider.enum";
 import {
   ProviderBalance,
@@ -24,6 +24,7 @@ export class ProviderManagementService {
    * Get all providers info (balance, health, mode)
    */
   async getAllProvidersInfo(): Promise<ProviderInfo[]> {
+    await initProviderModesFromDB();
     const providers = ProviderFactory.getAllProviders();
     const modes = ProviderFactory.getProviderModes();
 
@@ -94,6 +95,7 @@ export class ProviderManagementService {
    * Get specific provider info
    */
   async getProviderInfo(providerType: ProviderType): Promise<ProviderInfo> {
+    await initProviderModesFromDB();
     const provider = ProviderFactory.create(providerType);
     const modes = ProviderFactory.getProviderModes();
 
@@ -134,6 +136,7 @@ export class ProviderManagementService {
    * Get products from specific provider
    */
   async getProviderProducts(providerType: ProviderType): Promise<ProviderProduct[]> {
+    await initProviderModesFromDB();
     const provider = ProviderFactory.create(providerType);
     const startTime = Date.now();
 
@@ -188,6 +191,7 @@ export class ProviderManagementService {
    * Get products from all providers
    */
   async getAllProviderProducts(): Promise<Map<ProviderType, ProviderProduct[]>> {
+    await initProviderModesFromDB();
     const providers = ProviderFactory.getAllProviders();
     const productsMap = new Map<ProviderType, ProviderProduct[]>();
 
@@ -251,6 +255,7 @@ export class ProviderManagementService {
    * Test provider connection
    */
   async testProviderConnection(providerType: ProviderType): Promise<ProviderHealthCheck> {
+    await initProviderModesFromDB();
     const provider = ProviderFactory.create(providerType);
     const startTime = Date.now();
 
@@ -306,6 +311,7 @@ export class ProviderManagementService {
    * Check balance for specific provider (on-demand)
    */
   async checkProviderBalance(providerType: ProviderType): Promise<ProviderBalance> {
+    await initProviderModesFromDB();
     const provider = ProviderFactory.create(providerType);
     const startTime = Date.now();
 
@@ -345,6 +351,7 @@ export class ProviderManagementService {
    * Sync products from specific provider (on-demand)
    */
   async syncProviderProducts(providerType: ProviderType): Promise<ProviderProduct[]> {
+    await initProviderModesFromDB();
     const provider = ProviderFactory.create(providerType);
     const startTime = Date.now();
 

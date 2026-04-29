@@ -31,11 +31,11 @@ function AdminDashboardPageContent() {
       {/* Sidebar dirender di luar flex container agar tidak mempengaruhi lebar konten */}
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      <div className="px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
+      <div className="admin-page-padding px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
         <div className="flex flex-col gap-4 sm:gap-6">
           <Header onMenuClick={() => setSidebarOpen(true)} />
 
-          <div className="grid gap-4 sm:gap-6 lg:grid-cols-[2.1fr_1fr] min-w-0">
+          <div className="admin-dashboard-grid grid gap-4 sm:gap-6 lg:grid-cols-[2.1fr_1fr] min-w-0">
             <section className="flex flex-col gap-4 sm:gap-6 min-w-0">
               <StatsCards />
               <RevenueChart />

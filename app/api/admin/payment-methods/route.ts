@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/src/infra/db/prisma";
+import { getDefaultPaymentMethodSeeds } from "@/src/infra/payment/payment-methods.config";
 
 export const dynamic = "force-dynamic";
-
-const DEFAULT_METHODS = [
-  { key: "qris", label: "QRIS", group: "QRIS", imageUrl: null, sortOrder: 1 },
-];
 
 /**
  * GET /api/admin/payment-methods
@@ -13,13 +10,10 @@ const DEFAULT_METHODS = [
  */
 export async function GET() {
   try {
-    const count = await prisma.paymentMethod.count();
-    if (count === 0) {
-      await prisma.paymentMethod.createMany({
-        data: DEFAULT_METHODS.map((m) => ({ ...m, isActive: true })),
-        skipDuplicates: true,
-      });
-    }
+    await prisma.paymentMethod.createMany({
+      data: getDefaultPaymentMethodSeeds(),
+      skipDuplicates: true,
+    });
 
     const methods = await prisma.paymentMethod.findMany({
       orderBy: { sortOrder: "asc" },

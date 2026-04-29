@@ -72,7 +72,7 @@ function withdrawalStatusMeta(status: string) {
     return { label: "Menunggu Diproses", className: "bg-amber-100 text-amber-700 ring-1 ring-amber-200" };
   }
   if (status === "APPROVED") {
-    return { label: "Payout Diproses", className: "bg-sky-100 text-sky-700 ring-1 ring-sky-200" };
+    return { label: "Disetujui Admin", className: "bg-sky-100 text-sky-700 ring-1 ring-sky-200" };
   }
   if (status === "PAID") {
     return { label: "Berhasil Dibayar", className: "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200" };
@@ -185,7 +185,7 @@ export default function MerchantWalletPage() {
         throw new Error(json.error || "Gagal mengajukan withdraw");
       }
 
-      showSuccess("Request withdraw berhasil dibuat dan payout sedang diproses.");
+      showSuccess("Request withdraw berhasil dibuat dan menunggu diproses admin.");
       setForm({
         amount: "",
         accountName: "",
@@ -210,7 +210,7 @@ export default function MerchantWalletPage() {
         <div className="flex flex-col gap-4 sm:gap-6">
           <MerchantHeader
             title="Saldo Merchant"
-            subtitle="Lihat saldo masuk dari penjualan, ajukan withdraw, dan pantau payout merchant."
+            subtitle="Lihat saldo masuk dari penjualan, ajukan withdraw, dan pantau pencairan merchant."
             onMenuClick={() => setSidebarOpen(true)}
           />
 
@@ -245,7 +245,7 @@ export default function MerchantWalletPage() {
                     <div>
                       <h2 className="text-lg font-bold text-slate-900">Ajukan Withdraw</h2>
                       <p className="mt-1 text-sm text-slate-500">
-                        Withdraw akan langsung diproses ke Poppay setelah kamu kirim request.
+                        Withdraw akan masuk antrean admin setelah kamu kirim request.
                       </p>
                     </div>
                     <div className="w-full rounded-2xl bg-emerald-50 px-3 py-2 ring-1 ring-emerald-100 sm:w-auto sm:max-w-[220px] sm:text-right">
@@ -340,7 +340,7 @@ export default function MerchantWalletPage() {
                     </div>
 
                     <div className="rounded-2xl bg-slate-50 px-4 py-3 text-xs leading-relaxed text-slate-500 ring-1 ring-slate-200">
-                      Pastikan data rekening tujuan sudah benar. Status pencairan dan riwayat withdraw akan diperbarui otomatis di halaman ini.
+                      Pastikan data rekening tujuan sudah benar. Status pencairan dan riwayat withdraw akan diperbarui setelah admin memproses request.
                     </div>
 
                     <div className="flex justify-end">
@@ -359,7 +359,7 @@ export default function MerchantWalletPage() {
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <h2 className="text-lg font-bold text-slate-900">Riwayat Withdraw</h2>
-                      <p className="mt-1 text-sm text-slate-500">Pantau status payout merchant dan reference dari Poppay.</p>
+                      <p className="mt-1 text-sm text-slate-500">Pantau status withdraw merchant dan referensi transfer.</p>
                     </div>
                     <button
                       type="button"
@@ -383,7 +383,7 @@ export default function MerchantWalletPage() {
                     {withdrawals.length === 0 ? (
                       <div className="rounded-3xl bg-slate-50 px-4 py-10 text-center">
                         <p className="text-sm font-medium text-slate-600">Belum ada request withdraw</p>
-                        <p className="mt-1 text-xs text-slate-400">Request yang kamu ajukan akan tampil di sini lengkap dengan status payout.</p>
+                        <p className="mt-1 text-xs text-slate-400">Request yang kamu ajukan akan tampil di sini lengkap dengan status pencairan.</p>
                       </div>
                     ) : (
                       withdrawals.map((item) => {
@@ -419,7 +419,7 @@ export default function MerchantWalletPage() {
                                 Bank Code: <span className="font-medium text-slate-700">{item.bankCode || "-"}</span>
                               </p>
                               <p>
-                                Gateway Ref: <span className="font-medium text-slate-700">{item.payoutRefId || "-"}</span>
+                                Ref Transfer: <span className="font-medium text-slate-700">{item.payoutRefId || "-"}</span>
                               </p>
                             </div>
 

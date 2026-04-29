@@ -101,7 +101,7 @@ export default function Header() {
     <header
       className={`bg-[#003D99] px-4 ${
         isScrolled
-          ? "fixed inset-x-0 top-0 z-40 py-2.5 shadow-lg"
+          ? "fixed left-1/2 top-0 z-40 w-full max-w-[480px] -translate-x-1/2 py-2.5 shadow-lg"
           : "relative pt-4 pb-3 lg:pt-5 lg:pb-4"
       }`}
     >

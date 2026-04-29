@@ -31,6 +31,7 @@ export enum LedgerType {
 
 export enum WebhookSource {
   PAKASIR = "PAKASIR",
+  MIDTRANS = "MIDTRANS",
   POPPAY = "POPPAY",
   DIGIFLAZZ = "DIGIFLAZZ",
   VIP_RESELLER = "VIP_RESELLER",

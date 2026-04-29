@@ -1,7 +1,7 @@
 /**
  * POST /api/wallet/topup
  *
- * Initiates a wallet top-up via Poppay QRIS payment gateway.
+ * Initiates a wallet top-up via the selected payment gateway.
  * Returns payment URL to redirect the user to.
  */
 
@@ -9,7 +9,11 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/src/infra/db/prisma";
 import { getSession } from "@/lib/session";
-import { PoppayAdapter } from "@/src/infra/payment/poppay/poppay.adapter";
+import {
+  isPaymentGatewayConfigured,
+  resolvePaymentGateway,
+} from "@/src/infra/payment/payment-gateway.factory";
+import { resolveActiveStorefrontPaymentMethod } from "@/src/infra/payment/active-payment-method";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +24,7 @@ const TopupSchema = z.object({
     (v) => ALLOWED_AMOUNTS.includes(v),
     { message: `Amount harus salah satu dari: ${ALLOWED_AMOUNTS.map((a) => a.toLocaleString("id-ID")).join(", ")}` }
   ),
-  paymentMethod: z.string().min(1).optional(),  // QRIS only
+  paymentMethod: z.string().min(1).optional(),
   redirectUrl: z.string().url().optional(),
 });
 
@@ -58,6 +62,22 @@ export async function POST(request: Request) {
 
     const { amount, paymentMethod, redirectUrl } = parsed.data;
 
+    const activePaymentMethod = await resolveActiveStorefrontPaymentMethod(paymentMethod);
+    if (!activePaymentMethod.ok) {
+      return NextResponse.json(
+        { success: false, error: activePaymentMethod.error },
+        { status: activePaymentMethod.status }
+      );
+    }
+
+    const gatewaySelection = await resolvePaymentGateway(activePaymentMethod.methodKey);
+    if (!(await isPaymentGatewayConfigured(activePaymentMethod.methodKey))) {
+      return NextResponse.json(
+        { success: false, error: "Payment gateway belum terkonfigurasi lengkap." },
+        { status: 400 }
+      );
+    }
+
     // ── Generate unique topup code ─────────────────────────────────────────
     let topupCode = generateTopupCode();
     // Ensure uniqueness (retry once on collision)
@@ -81,22 +101,19 @@ export async function POST(request: Request) {
       },
     });
 
-    // ── Create Poppay QRIS invoice ─────────────────────────────────────────
-    const gateway = new PoppayAdapter();
-
     let paymentResult;
     try {
-      paymentResult = await gateway.createPayment({
+      paymentResult = await gatewaySelection.gateway.createPayment({
         orderId: topupCode,
         amount,
-        method: paymentMethod ?? "qris",
+        method: gatewaySelection.methodCode,
         redirectUrl,
         description: `Top up saldo ${session.userId}`,
       });
     } catch (err: unknown) {
       // Roll back the pending record
       await prisma.walletTopup.delete({ where: { id: topup.id } });
-      console.error("[Wallet Topup] Poppay createPayment failed:", err);
+      console.error("[Wallet Topup] createPayment failed:", err);
       return NextResponse.json(
         { success: false, error: "Gagal membuat invoice pembayaran. Coba lagi." },
         { status: 502 }
@@ -109,7 +126,7 @@ export async function POST(request: Request) {
       data: {
         fee: paymentResult.fee,
         totalPayment: paymentResult.totalPayment,
-        paymentMethod: paymentResult.method ?? paymentMethod ?? null,
+        paymentMethod: paymentResult.method ?? activePaymentMethod.methodKey,
         paymentUrl: paymentResult.paymentUrl,
         paymentNumber: paymentResult.paymentNumber ?? null,
         invoiceId: paymentResult.invoiceId,
@@ -132,7 +149,7 @@ export async function POST(request: Request) {
           expiredAt: updated.expiredAt,
           status: updated.status,
         },
-        mode: "poppay",
+        mode: gatewaySelection.gatewayCode.toLowerCase(),
       },
       { status: 201 }
     );

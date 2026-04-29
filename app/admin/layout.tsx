@@ -36,6 +36,5 @@ function AdminGuard({ children }: { children: React.ReactNode }) {
     return null;
   }
 
-  return <div className="lg:pl-64">{children}</div>;
+  return <div className="admin-shell">{children}</div>;
 }
-

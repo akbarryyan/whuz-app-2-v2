@@ -21,6 +21,7 @@ import {
 import { OrderRepository } from "@/src/infra/db/repositories/order.repository";
 import { PakasirAdapter } from "@/src/infra/payment/pakasir/pakasir.adapter";
 import { handleWalletTopupWebhook } from "@/lib/wallet-topup-webhook";
+import { getPakasirMode } from "@/lib/site-config";
 
 export const dynamic = "force-dynamic";
 
@@ -42,7 +43,7 @@ export async function POST(request: Request) {
   // ── Wallet top-up: order_id starts with "WT-" ─────────────────────────────
   if (String(payload.order_id ?? "").startsWith("WT-")) {
     try {
-      const result = await handleWalletTopupWebhook(payload, new PakasirAdapter());
+      const result = await handleWalletTopupWebhook(payload, new PakasirAdapter(await getPakasirMode()));
       return NextResponse.json({ received: true, ...result });
     } catch (err: unknown) {
       console.error("[POST /api/webhooks/payment] Wallet topup error:", err instanceof Error ? err.message : err);
@@ -54,7 +55,7 @@ export async function POST(request: Request) {
   try {
     const webhookService = new HandlePakasirWebhookService(
       new OrderRepository(),
-      new PakasirAdapter(),
+      new PakasirAdapter(await getPakasirMode()),
     );
     const result = await webhookService.handle(payload, rawBody);
     console.log("[POST /api/webhooks/payment]", result);

@@ -52,14 +52,14 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       {/* Mobile Overlay */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          className="admin-sidebar-overlay fixed inset-0 z-40 bg-black/50 lg:hidden"
           onClick={onClose}
         />
       )}
 
       {/* Sidebar */}
       <aside
-        className={`fixed left-0 top-0 z-50 flex h-full w-64 transform flex-col bg-white p-6 shadow-xl transition-transform duration-300 ease-in-out lg:h-screen lg:shadow-sm ${
+        className={`admin-sidebar fixed left-0 top-0 z-50 flex h-full w-64 transform flex-col bg-white p-6 shadow-xl transition-transform duration-300 ease-in-out lg:h-screen lg:shadow-sm ${
           isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
       >
@@ -90,7 +90,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           </div>
           <button
             onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 lg:hidden"
+            className="admin-sidebar-close flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 lg:hidden"
           >
             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -143,6 +143,10 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 icon: <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 6h18M3 14h18M3 18h18"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14h.01"/></svg>,
               },
               {
+                name: "Withdraw", href: "/admin/withdrawals",
+                icon: <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v12m0 0l-4-4m4 4l4-4"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 19h14"/></svg>,
+              },
+              {
                 name: "Pesan", href: "/admin/tickets",
                 icon: <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>,
               },
@@ -165,10 +169,6 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               {
                 name: "Test Transaksi", href: "/admin/test-transaction",
                 icon: <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>,
-              },
-              {
-                name: "Debug Poppay", href: "/admin/payment-gateway/poppay",
-                icon: <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 3a3.75 3.75 0 00-3.75 3.75v1.5H5.25A2.25 2.25 0 003 10.5v7.5a2.25 2.25 0 002.25 2.25h13.5A2.25 2.25 0 0021 18v-7.5a2.25 2.25 0 00-2.25-2.25H18v-1.5A3.75 3.75 0 0014.25 3h-4.5zM16.5 8.25h-9v-1.5a2.25 2.25 0 012.25-2.25h4.5a2.25 2.25 0 012.25 2.25v1.5z"/></svg>,
               },
               {
                 name: "Member", href: "/admin/members",

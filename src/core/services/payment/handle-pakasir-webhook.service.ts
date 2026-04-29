@@ -85,7 +85,9 @@ export class HandlePakasirWebhookService {
     }
 
     // ── Find order by order_code ────────────────────────────────────────────
-    const order = await this.orderRepo.findByCode(payload.order_id);
+    const order =
+      await this.orderRepo.findByCode(payload.order_id) ??
+      await this.orderRepo.findByInvoiceId(payload.order_id);
 
     if (!order) {
       console.error(`[Webhook/Pakasir] Order ${payload.order_id} not found`);

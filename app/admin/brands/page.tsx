@@ -164,7 +164,7 @@ export default function AdminBrandsPage() {
       <ToastContainer toasts={toast.toasts} onRemove={toast.removeToast} />
 
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <div className="px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
+      <div className="admin-page-padding px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
         <div className="flex flex-col gap-4 sm:gap-6">
           <Header onMenuClick={() => setSidebarOpen(true)} />
 
@@ -196,7 +196,7 @@ export default function AdminBrandsPage() {
           </div>
 
           {loading ? (
-            <div className="grid sm:grid-cols-2 gap-3">
+            <div className="admin-brands-grid grid sm:grid-cols-2 gap-3">
               {Array.from({ length: 8 }).map((_, i) => (
                 <div key={i} className="bg-white rounded-xl p-4 flex items-center gap-3 animate-pulse shadow-sm border border-slate-100">
                   <div className="w-14 h-14 rounded-lg bg-slate-200 flex-shrink-0" />
@@ -205,7 +205,7 @@ export default function AdminBrandsPage() {
               ))}
             </div>
           ) : (
-            <div className="grid sm:grid-cols-2 gap-3">
+            <div className="admin-brands-grid grid sm:grid-cols-2 gap-3">
               {filteredBrands.map((brand) => {
                 const isEditing = editingBrand === brand.brand;
                 const previewUrl = isEditing ? editUrl : brand.imageUrl;
@@ -282,7 +282,7 @@ export default function AdminBrandsPage() {
               })}
 
               {filteredBrands.length === 0 && (
-                <div className="sm:col-span-2 bg-white rounded-xl p-10 text-center shadow-sm border border-slate-100">
+                <div className="admin-brands-empty sm:col-span-2 bg-white rounded-xl p-10 text-center shadow-sm border border-slate-100">
                   <p className="text-sm text-slate-500">Tidak ada brand ditemukan.</p>
                 </div>
               )}

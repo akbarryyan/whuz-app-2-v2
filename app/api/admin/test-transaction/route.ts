@@ -15,7 +15,7 @@ import crypto from "crypto";
 import { prisma } from "@/src/infra/db/prisma";
 import { OrderRepository } from "@/src/infra/db/repositories/order.repository";
 import { ProviderFactory } from "@/src/infra/providers/provider.factory";
-import { PoppayAdapter } from "@/src/infra/payment/poppay/poppay.adapter";
+import { resolvePaymentGateway } from "@/src/infra/payment/payment-gateway.factory";
 import { ProviderType } from "@/src/core/domain/enums/provider.enum";
 import { OrderStatus } from "@/src/core/domain/enums/order.enum";
 
@@ -27,7 +27,7 @@ const Schema = z.object({
   targetData: z.record(z.string(), z.unknown()).optional(),
   /** WALLET (default) or PAYMENT_GATEWAY (skips provider, only creates order+invoice) */
   paymentMethod: z.enum(["WALLET", "PAYMENT_GATEWAY"]).default("WALLET"),
-  /** Metode PG saat ini QRIS-only. */
+  /** Metode PG, contoh: midtrans_qris atau pakasir_all. */
   pgMethod: z.string().optional(),
   /** userId opsional — jika tidak diisi, pakai user pertama di DB */
   userId: z.string().optional(),
@@ -158,14 +158,13 @@ export async function POST(request: Request) {
     // Update status order ke WAITING_PAYMENT terlebih dahulu
     await orderRepo.updateStatus(order.id, OrderStatus.WAITING_PAYMENT);
 
-    // Panggil Poppay untuk buat invoice QRIS
-    const poppay = new PoppayAdapter();
+    const gatewaySelection = await resolvePaymentGateway(pgMethod);
     let pgResult;
     try {
-      pgResult = await poppay.createPayment({
+      pgResult = await gatewaySelection.gateway.createPayment({
         orderId: orderCode,
         amount,
-        method: pgMethod ?? "qris",
+        method: gatewaySelection.methodCode,
         description: `${product.name} — ${targetNumber}`,
       });
     } catch (err: unknown) {
@@ -173,7 +172,7 @@ export async function POST(request: Request) {
       await orderRepo.updateStatus(order.id, OrderStatus.FAILED, { notes: message });
       addStep("create_invoice", "error", { error: message });
       return NextResponse.json(
-        { success: false, error: `Poppay error: ${message}`, steps },
+        { success: false, error: `${gatewaySelection.gatewayCode} error: ${message}`, steps },
         { status: 502 }
       );
     }
@@ -185,7 +184,7 @@ export async function POST(request: Request) {
     });
     await orderRepo.createInvoice({
       orderId: order.id,
-      gatewayName: "POPPAY",
+      gatewayName: gatewaySelection.gateway.gatewayName,
       invoiceId: pgResult.invoiceId,
       amount: pgResult.amount,
       fee: pgResult.fee,
@@ -214,7 +213,7 @@ export async function POST(request: Request) {
         amount: pgResult.totalPayment,
         serialNumber: null,
         providerRef: pgResult.invoiceId,
-        mode: "poppay",
+        mode: gatewaySelection.gatewayCode.toLowerCase(),
         paymentUrl: pgResult.paymentUrl,
         paymentNumber: pgResult.paymentNumber,
       },

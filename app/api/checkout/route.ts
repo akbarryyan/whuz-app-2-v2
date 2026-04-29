@@ -9,8 +9,11 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { CreateCheckoutService } from "@/src/core/services/checkout/create-checkout.service";
 import { OrderRepository } from "@/src/infra/db/repositories/order.repository";
-import { PoppayAdapter } from "@/src/infra/payment/poppay/poppay.adapter";
-import { isPoppayConfigured } from "@/src/infra/payment/poppay/poppay.client";
+import {
+  isPaymentGatewayConfigured,
+  resolvePaymentGateway,
+} from "@/src/infra/payment/payment-gateway.factory";
+import { resolveActiveStorefrontPaymentMethod } from "@/src/infra/payment/active-payment-method";
 import { getSession } from "@/lib/session";
 import { prisma } from "@/src/infra/db/prisma";
 import {
@@ -137,27 +140,48 @@ export async function POST(request: Request) {
       userId
     );
 
-    if (parsed.data.paymentMethod === "PAYMENT_GATEWAY" && !(await isPoppayConfigured())) {
+    let checkoutPaymentGatewayMethod = parsed.data.paymentGatewayMethod;
+
+    if (parsed.data.paymentMethod === "PAYMENT_GATEWAY") {
+      const activePaymentMethod = await resolveActiveStorefrontPaymentMethod(parsed.data.paymentGatewayMethod);
+      if (!activePaymentMethod.ok) {
+        return NextResponse.json(
+          { success: false, error: activePaymentMethod.error },
+          { status: activePaymentMethod.status }
+        );
+      }
+
+      checkoutPaymentGatewayMethod = activePaymentMethod.methodKey;
+    }
+
+    const gatewaySelection = parsed.data.paymentMethod === "PAYMENT_GATEWAY"
+      ? await resolvePaymentGateway(checkoutPaymentGatewayMethod)
+      : null;
+
+    if (
+      parsed.data.paymentMethod === "PAYMENT_GATEWAY" &&
+      !(await isPaymentGatewayConfigured(checkoutPaymentGatewayMethod))
+    ) {
       return NextResponse.json(
         {
           success: false,
-          error: "Poppay belum terkonfigurasi lengkap. Isi URL/API base, version, integrator token, aggregator code, dan merchant account number di Admin Settings.",
+          error: "Payment gateway belum terkonfigurasi lengkap. Isi kredensial Midtrans atau Pakasir di Admin Settings.",
         },
         { status: 400 }
       );
     }
 
-    // ── 5. Buat Poppay adapter ─────────────────────────────────────────────
-    const paymentGateway = new PoppayAdapter();
+    const paymentGateway = gatewaySelection?.gateway;
 
     // ── 6. Call service ────────────────────────────────────────────────────
     const checkoutService = new CreateCheckoutService(
       new OrderRepository(),
-      paymentGateway,
+      paymentGateway!,
     );
 
     const result = await checkoutService.execute({
       ...parsed.data,
+      paymentGatewayMethod: gatewaySelection?.methodCode ?? parsed.data.paymentGatewayMethod,
       userId,
       voucherCode: discountAmount > 0 ? parsed.data.voucherCode : undefined,
       voucherDiscount: discountAmount,
@@ -169,7 +193,7 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json(
-      { success: true, data: result, mode: "poppay" },
+      { success: true, data: result, mode: gatewaySelection?.gatewayCode.toLowerCase() ?? "wallet" },
       { status: 201 }
     );
   } catch (err) {

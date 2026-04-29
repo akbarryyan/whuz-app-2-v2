@@ -34,7 +34,8 @@ export function calculatePaymentGatewayFee(
   if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) return 0;
 
   const normalizedMethod = String(methodKey ?? "").trim().toLowerCase();
-  if (normalizedMethod && normalizedMethod !== "qris") return 0;
+  const feeMethod = normalizedMethod.replace(/^(midtrans|pakasir)_/, "");
+  if (feeMethod && feeMethod !== "qris") return 0;
 
   const feeConfig = normalizePaymentGatewayFeeConfig(config);
   if (feeConfig.value <= 0) return 0;

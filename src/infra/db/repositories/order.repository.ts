@@ -89,6 +89,16 @@ export class OrderRepository {
     });
   }
 
+  async findByInvoiceId(invoiceId: string) {
+    const invoice = await prisma.paymentInvoice.findUnique({
+      where: { invoiceId },
+      select: { orderId: true },
+    });
+
+    if (!invoice) return null;
+    return this.findById(invoice.orderId);
+  }
+
   async findByProviderRef(providerRef: string) {
     return prisma.order.findFirst({
       where: { providerRef },

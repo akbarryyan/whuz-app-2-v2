@@ -192,7 +192,7 @@ function TopupStatusPageContent({
                     ? "Kami sedang menunggu konfirmasi dari payment gateway..."
                     : timedOut
                     ? "Belum ada konfirmasi pembayaran. Cek kembali beberapa saat lagi."
-                    : "Selesaikan pembayaran melalui QRIS di halaman ini."}
+                    : "Selesaikan pembayaran melalui halaman atau instruksi gateway."}
                 </p>
               </div>
 
@@ -210,6 +210,17 @@ function TopupStatusPageContent({
                     </p>
                   </div>
                 </div>
+              )}
+
+              {topup?.paymentUrl && (
+                <a
+                  href={topup.paymentUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="w-full rounded-2xl bg-[#003D99] px-4 py-3.5 text-center text-sm font-bold text-white transition hover:bg-blue-800"
+                >
+                  Buka Halaman Pembayaran
+                </a>
               )}
 
               {/* Detail card */}

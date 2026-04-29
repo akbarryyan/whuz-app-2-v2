@@ -84,3 +84,109 @@ body {
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+@media (min-width: 1024px) {
+  .admin-shell {
+    padding-left: 16rem;
+  }
+
+  .admin-sidebar {
+    background: #ffffff;
+    height: 100vh;
+    translate: 0 0 !important;
+    transform: translateX(0) !important;
+    box-shadow: 0 1px 2px rgb(15 23 42 / 0.08);
+  }
+
+  .admin-sidebar-overlay,
+  .admin-sidebar-close,
+  .admin-header-menu,
+  .admin-header-mobile-avatar {
+    display: none !important;
+  }
+
+  .admin-header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    border-radius: 1.5rem;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+
+  .admin-header-desktop-avatar {
+    display: block !important;
+  }
+
+  .admin-page-padding {
+    padding: 1.5rem 2rem;
+  }
+
+  .admin-dashboard-grid {
+    grid-template-columns: minmax(0, 2.1fr) minmax(0, 1fr);
+    gap: 1.5rem;
+  }
+
+  .admin-stats-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+  }
+
+  .admin-setting-row {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+
+  .admin-setting-row > input,
+  .admin-setting-row > textarea {
+    min-width: 0;
+  }
+
+  .admin-setting-save {
+    width: auto !important;
+    align-self: flex-start;
+    white-space: nowrap;
+  }
+
+  .admin-products-header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .admin-products-stats-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .admin-products-filters-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .admin-products-mobile-list {
+    display: none !important;
+  }
+
+  .admin-products-desktop-table {
+    display: block !important;
+  }
+
+  .admin-brands-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-brands-empty {
+    grid-column: span 2 / span 2;
+  }
+
+  .admin-flash-sale-header {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+
+  .admin-flash-sale-save {
+    width: auto !important;
+    align-self: flex-start;
+    white-space: nowrap;
+  }
+}

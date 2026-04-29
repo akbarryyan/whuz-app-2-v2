@@ -2,59 +2,29 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/src/infra/db/prisma";
-import { PoppayClient } from "@/src/infra/payment/poppay/poppay.client";
 
 export const dynamic = "force-dynamic";
 
 const UpdateWithdrawalSchema = z.object({
   status: z.enum(["APPROVED", "REJECTED", "PAID", "CANCELLED"]),
   bankCode: z.string().trim().max(40).optional(),
+  payoutRefId: z.string().trim().max(120).optional(),
   processedNote: z.string().max(1000).optional(),
 });
 
-function normalizeBankLabel(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/\b(pt|tbk|persero)\b/g, "")
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
+type UpdateWithdrawalInput = z.infer<typeof UpdateWithdrawalSchema>;
+type WithdrawalStatus = UpdateWithdrawalInput["status"];
+
+function trimOrNull(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
 }
 
-function resolvePoppayCallbackUrl(): string | null {
-  const baseUrl =
-    process.env.NEXT_PUBLIC_BASE_URL ??
-    process.env.NEXT_PUBLIC_APP_URL ??
-    process.env.APP_URL ??
-    "";
-
-  if (!baseUrl) return null;
-  return `${baseUrl.replace(/\/+$/, "")}/api/webhook/poppay`;
-}
-
-function toPrismaJson(
-  value: Record<string, unknown> | null | undefined
-): Prisma.InputJsonValue | typeof Prisma.JsonNull {
-  return value
-    ? (value as Prisma.InputJsonValue)
-    : Prisma.JsonNull;
-}
-
-async function resolvePoppayBankCode(explicitBankCode: string | null | undefined, bankName: string): Promise<string> {
-  if (explicitBankCode?.trim()) return explicitBankCode.trim();
-
-  const client = new PoppayClient();
-  const banks = await client.listBanks({ start: 0, length: 500, filters: [{ key: "c", value: "IDR" }] });
-  const normalizedTarget = normalizeBankLabel(bankName);
-
-  const exact = banks.data.find((item) => normalizeBankLabel(item.name) === normalizedTarget);
-  if (exact) return exact.code;
-
-  const contains = banks.data.filter((item) => normalizeBankLabel(item.name).includes(normalizedTarget));
-  if (contains.length === 1) return contains[0].code;
-
-  throw new Error(
-    `Kode bank Poppay untuk "${bankName}" belum ditemukan. Simpan bankCode yang benar sebelum approve withdraw.`
-  );
+function defaultProcessedNote(status: WithdrawalStatus): string {
+  if (status === "APPROVED") return "Withdraw disetujui, menunggu transfer manual.";
+  if (status === "PAID") return "Withdraw dibayar manual oleh admin.";
+  if (status === "REJECTED") return "Withdraw ditolak admin.";
+  return "Withdraw dibatalkan admin.";
 }
 
 export async function PATCH(
@@ -76,54 +46,6 @@ export async function PATCH(
   }
 
   try {
-    const current = await prisma.sellerWithdrawalRequest.findUnique({
-      where: { id },
-    });
-
-    if (!current) {
-      throw new Error("Request withdraw tidak ditemukan");
-    }
-
-    if (parsed.data.status === "APPROVED") {
-      if (current.status !== "PENDING") {
-        throw new Error("Withdraw hanya bisa di-approve dari status PENDING.");
-      }
-
-      const bankCode = await resolvePoppayBankCode(parsed.data.bankCode || current.bankCode, current.bankName);
-      const client = new PoppayClient();
-      const payout = await client.createOutgoing({
-        aggRefId: `withdraw-${current.id}`,
-        amount: Number(current.amount),
-        bankCode,
-        destinationAccountNumber: current.accountNumber,
-        destinationAccountName: current.accountName,
-        notes: current.note || parsed.data.processedNote || `Withdraw merchant ${current.id}`,
-        callbackUrl: resolvePoppayCallbackUrl(),
-      });
-
-      const result = await prisma.sellerWithdrawalRequest.update({
-        where: { id: current.id },
-        data: {
-          status: "APPROVED",
-          bankCode,
-          payoutGateway: "POPPAY",
-          payoutRefId: payout.refId,
-          payoutAggRefId: payout.aggregatorRefId,
-          payoutRawPayload: toPrismaJson(payout.raw),
-          processedNote: parsed.data.processedNote?.trim() || null,
-          processedAt: new Date(),
-        },
-      });
-
-      return NextResponse.json({
-        success: true,
-        data: {
-          ...result,
-          amount: Number(result.amount),
-        },
-      });
-    }
-
     const result = await prisma.$transaction(async (tx) => {
       const request = await tx.sellerWithdrawalRequest.findUnique({
         where: { id },
@@ -134,13 +56,55 @@ export async function PATCH(
         throw new Error("Request ini sudah diproses sebelumnya");
       }
 
-      if (parsed.data.status === "REJECTED" || parsed.data.status === "CANCELLED") {
+      const bankCode = trimOrNull(parsed.data.bankCode) ?? request.bankCode;
+      const payoutRefId = trimOrNull(parsed.data.payoutRefId) ?? request.payoutRefId;
+      const processedNote = trimOrNull(parsed.data.processedNote) ?? defaultProcessedNote(parsed.data.status);
+
+      if (parsed.data.status === "APPROVED") {
         if (request.status !== "PENDING") {
-          throw new Error("Withdraw yang sudah disubmit ke payout tidak bisa dibatalkan dari sini.");
+          throw new Error("Withdraw hanya bisa di-approve dari status PENDING.");
+        }
+
+        return tx.sellerWithdrawalRequest.update({
+          where: { id: request.id },
+          data: {
+            status: "APPROVED",
+            bankCode,
+            payoutGateway: "MANUAL",
+            payoutRefId,
+            processedNote,
+            processedAt: new Date(),
+          },
+        });
+      }
+
+      if (parsed.data.status === "REJECTED" || parsed.data.status === "CANCELLED") {
+        const isLegacyGatewayPayout =
+          request.status === "APPROVED" &&
+          request.payoutGateway !== null &&
+          request.payoutGateway !== "MANUAL";
+
+        if (request.status !== "PENDING" && request.status !== "APPROVED") {
+          throw new Error("Withdraw ini tidak bisa dibatalkan dari status saat ini.");
+        }
+
+        if (isLegacyGatewayPayout) {
+          throw new Error("Withdraw sudah dikirim ke gateway payout legacy. Review manual sebelum release saldo.");
         }
 
         const wallet = await tx.wallet.findUnique({ where: { userId: request.userId } });
-        if (wallet) {
+        const existingReleaseLedger = wallet
+          ? await tx.ledgerEntry.findFirst({
+              where: {
+                walletId: wallet.id,
+                type: "WITHDRAW_RELEASE",
+                reference: request.id,
+              },
+              select: { id: true },
+            })
+          : null;
+
+        if (wallet && !existingReleaseLedger) {
           const balanceBefore = Number(wallet.balance);
           const balanceAfter = balanceBefore + Number(request.amount);
 
@@ -195,8 +159,10 @@ export async function PATCH(
         where: { id: request.id },
         data: {
           status: parsed.data.status,
-          bankCode: parsed.data.bankCode?.trim() || request.bankCode,
-          processedNote: parsed.data.processedNote?.trim() || null,
+          bankCode,
+          payoutGateway: request.payoutGateway ?? "MANUAL",
+          payoutRefId,
+          processedNote,
           processedAt: new Date(),
         },
       });

@@ -34,7 +34,7 @@ export default function StatsCards() {
   }, []);
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3 min-w-0">
+    <div className="admin-stats-grid grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3 min-w-0">
       {stats.map((stat) => (
         <div
           key={stat.label}

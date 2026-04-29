@@ -2,8 +2,10 @@ import crypto from "crypto";
 import { NextResponse } from "next/server";
 import { InvoiceStatus, OrderStatus, PaymentMethod } from "@/src/core/domain/enums/order.enum";
 import { OrderRepository } from "@/src/infra/db/repositories/order.repository";
-import { PoppayAdapter } from "@/src/infra/payment/poppay/poppay.adapter";
-import { isPoppayConfigured } from "@/src/infra/payment/poppay/poppay.client";
+import {
+  isPaymentGatewayConfigured,
+  resolvePaymentGateway,
+} from "@/src/infra/payment/payment-gateway.factory";
 import { getSession } from "@/lib/session";
 import { prisma } from "@/src/infra/db/prisma";
 
@@ -79,19 +81,21 @@ export async function POST(
 
     if (!invoiceExpired || !orderReissuable || !hasNeverBeenPaid) {
       return NextResponse.json(
-        { success: false, error: "QRIS baru hanya bisa diminta untuk pesanan menunggu pembayaran yang sudah kedaluwarsa dan belum pernah dibayar." },
+        { success: false, error: "Invoice baru hanya bisa diminta untuk pesanan menunggu pembayaran yang sudah kedaluwarsa dan belum pernah dibayar." },
         { status: 400 }
       );
     }
 
-    if (!(await isPoppayConfigured())) {
+    const invoiceMethodKey = `${order.paymentInvoice.gatewayName.toLowerCase()}_${order.paymentInvoice.method ?? "qris"}`;
+    const gatewaySelection = await resolvePaymentGateway(invoiceMethodKey);
+    if (!(await isPaymentGatewayConfigured(invoiceMethodKey))) {
       return NextResponse.json(
-        { success: false, error: "Poppay belum terkonfigurasi lengkap." },
+        { success: false, error: "Payment gateway belum terkonfigurasi lengkap." },
         { status: 400 }
       );
     }
 
-    const paymentGateway = new PoppayAdapter();
+    const paymentGateway = gatewaySelection.gateway;
     const payer = order.userId
       ? await prisma.user.findUnique({
           where: { id: order.userId },
@@ -104,7 +108,7 @@ export async function POST(
     const paymentResult = await paymentGateway.createPayment({
       orderId: buildReissuedOrderRef(order.orderCode),
       amount: payableAmount,
-      method: order.paymentInvoice.method ?? undefined,
+      method: gatewaySelection.methodCode,
       description: `${order.product.name} — ${order.targetNumber}`,
       payerName: payer?.name?.trim() || order.whatsapp?.trim() || order.targetNumber,
       payerEmail: payer?.email?.trim() || undefined,

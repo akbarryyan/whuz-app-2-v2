@@ -198,12 +198,12 @@ export default function FlashSalePage() {
       <ToastContainer toasts={toast.toasts} onRemove={toast.removeToast} />
 
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <div className="px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
+      <div className="admin-page-padding px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
         <div className="flex flex-col gap-4 sm:gap-6">
           <Header onMenuClick={() => setSidebarOpen(true)} />
 
           {/* Title */}
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="admin-flash-sale-header flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h1 className="text-xl font-bold text-slate-800">⚡ Flash Sale</h1>
               <p className="text-sm text-slate-500 mt-0.5">
@@ -213,14 +213,14 @@ export default function FlashSalePage() {
             <button
               onClick={save}
               disabled={saving || loading}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#003D99] text-white text-xs font-bold hover:bg-[#002d73] disabled:opacity-50 transition-colors sm:flex-shrink-0 w-full sm:w-auto"
+              className="admin-flash-sale-save inline-flex w-fit min-w-28 items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#003D99] text-white text-xs font-bold hover:bg-[#002d73] disabled:opacity-50 transition-colors sm:flex-shrink-0"
             >
               {saving ? (
                 <>
                   <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   Menyimpan...
                 </>
-              ) : "💾 Simpan"}
+              ) : "Simpan"}
             </button>
           </div>
 

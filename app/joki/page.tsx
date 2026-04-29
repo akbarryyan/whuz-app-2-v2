@@ -86,7 +86,7 @@ export default function JokiPage() {
 
   // Payment state
   const [paymentMethod, setPaymentMethod] = useState<"WALLET" | "PAYMENT_GATEWAY" | null>(null);
-  const [pgMethod, setPgMethod] = useState<string>("qris");
+  const [pgMethod, setPgMethod] = useState<string>("midtrans_qris");
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
   const [walletLoading, setWalletLoading] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);

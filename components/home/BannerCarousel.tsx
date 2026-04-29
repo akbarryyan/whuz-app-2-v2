@@ -85,7 +85,7 @@ export default function BannerCarousel() {
           </svg>
         </button>
       </div>
-      <div className="absolute inset-x-0 bottom-2 mx-auto w-full max-w-[480px] bg-[#E5F0FF] px-3 py-2 text-center shadow-lg lg:hidden">
+      <div className="absolute inset-x-0 bottom-0 mx-auto w-full max-w-[480px] bg-[#E5F0FF] px-3 py-2 text-center shadow-lg lg:hidden">
         <p className="text-[11px] text-slate-800 font-semibold">{tagline}</p>
       </div>
     </div>

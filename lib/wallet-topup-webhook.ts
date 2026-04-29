@@ -1,8 +1,8 @@
 /**
  * lib/wallet-topup-webhook.ts
  *
- * Shared logic for processing Pakasir webhook callbacks for wallet top-ups.
- * Called from both /api/webhook/pakasir and /api/webhooks/payment
+ * Shared logic for processing payment gateway webhook callbacks for wallet top-ups.
+ * Called from Pakasir/Midtrans webhook routes
  * when order_id starts with "WT-".
  */
 

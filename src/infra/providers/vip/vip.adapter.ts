@@ -97,7 +97,7 @@ export class VipResellerAdapter implements IProviderPort {
 
       return {
         provider: ProviderType.VIP_RESELLER,
-        balance: parseFloat(data.data?.balance || "0"),
+        balance: parseVipCurrency(data.data?.balance ?? data.data?.saldo ?? 0),
         currency: "IDR",
         lastUpdated: new Date(),
       };
@@ -401,4 +401,40 @@ export class VipResellerAdapter implements IProviderPort {
     console.log("[VIP] Generated signature (first 10 chars):", signature.substring(0, 10));
     return signature;
   }
+}
+
+function parseVipCurrency(value: unknown): number {
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+
+  const raw = String(value ?? "")
+    .trim()
+    .replace(/[^\d,.-]/g, "");
+
+  if (!raw) return 0;
+
+  const hasComma = raw.includes(",");
+  const hasDot = raw.includes(".");
+
+  if (hasComma && hasDot) {
+    const lastComma = raw.lastIndexOf(",");
+    const lastDot = raw.lastIndexOf(".");
+    const normalized = lastComma > lastDot
+      ? raw.replace(/\./g, "").replace(",", ".")
+      : raw.replace(/,/g, "");
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  if (hasDot && /^-?\d{1,3}(\.\d{3})+$/.test(raw)) {
+    const parsed = Number(raw.replace(/\./g, ""));
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  if (hasComma && /^-?\d{1,3}(,\d{3})+$/.test(raw)) {
+    const parsed = Number(raw.replace(/,/g, ""));
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  const parsed = Number(hasComma ? raw.replace(",", ".") : raw);
+  return Number.isFinite(parsed) ? parsed : 0;
 }

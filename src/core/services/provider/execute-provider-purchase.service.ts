@@ -1,5 +1,5 @@
 import { OrderRepository } from "@/src/infra/db/repositories/order.repository";
-import { ProviderFactory } from "@/src/infra/providers/provider.factory";
+import { ProviderFactory, initProviderModesFromDB } from "@/src/infra/providers/provider.factory";
 import { ProviderType } from "@/src/core/domain/enums/provider.enum";
 import { OrderStatus } from "@/src/core/domain/enums/order.enum";
 import { checkAndUpgradeUserTier } from "@/lib/pricing";
@@ -80,6 +80,7 @@ export class ExecuteProviderPurchaseService {
 
     // ── Resolve provider ──────────────────────────────────────────────────
     const providerType = (order.provider ?? "DIGIFLAZZ") as ProviderType;
+    await initProviderModesFromDB();
     const provider = ProviderFactory.create(providerType);
 
     // Build purchase request

@@ -13,16 +13,19 @@ interface SiteConfigData {
   modes: {
     DIGIFLAZZ: "mock" | "real";
     VIP_RESELLER: "mock" | "real";
+    PAKASIR: "sandbox" | "production";
   };
   envDefaults: Record<string, string>;
 }
+
+type ProductProviderModeKey = "DIGIFLAZZ" | "VIP_RESELLER";
 
 interface ProviderDef {
   key: string;               // site-config key in DB
   label: string;
   description: string;
   icon: string;
-  modeKey: keyof SiteConfigData["modes"];
+  modeKey: ProductProviderModeKey;
   envKey: string;
   /** Nilai saat toggle "off" (default/aman) */
   offValue: string;
@@ -89,21 +92,24 @@ export default function SettingsPage() {
   const [smtpFrom, setSmtpFrom] = useState("");
   const [showSmtpPass, setShowSmtpPass] = useState(false);
   const [smtpTestSending, setSmtpTestSending] = useState(false);
-  const [poppayApiBaseUrl, setPoppayApiBaseUrl] = useState("");
-  const [poppayUrl, setPoppayUrl] = useState("");
-  const [poppayPort, setPoppayPort] = useState("");
-  const [poppayVersion, setPoppayVersion] = useState("");
-  const [poppayIntegratorToken, setPoppayIntegratorToken] = useState("");
-  const [poppayAggregatorCode, setPoppayAggregatorCode] = useState("");
-  const [poppaySecretKey, setPoppaySecretKey] = useState("");
-  const [poppayMerchantAccountNumber, setPoppayMerchantAccountNumber] = useState("");
-  const [poppayEmail, setPoppayEmail] = useState("");
-  const [poppayPassword, setPoppayPassword] = useState("");
+  const [paymentGatewayDefault, setPaymentGatewayDefault] = useState<"MIDTRANS" | "PAKASIR">("MIDTRANS");
+  const [midtransMode, setMidtransMode] = useState<"sandbox" | "production">("sandbox");
+  const [midtransServerKey, setMidtransServerKey] = useState("");
+  const [midtransClientKey, setMidtransClientKey] = useState("");
+  const [midtransMerchantId, setMidtransMerchantId] = useState("");
+  const [midtransSnapBaseUrl, setMidtransSnapBaseUrl] = useState("");
+  const [midtransApiBaseUrl, setMidtransApiBaseUrl] = useState("");
+  const [pakasirMode, setPakasirMode] = useState<"sandbox" | "production">("sandbox");
+  const [pakasirSlug, setPakasirSlug] = useState("");
+  const [pakasirApiKey, setPakasirApiKey] = useState("");
+  const [pakasirSandboxSlug, setPakasirSandboxSlug] = useState("");
+  const [pakasirSandboxApiKey, setPakasirSandboxApiKey] = useState("");
   const [paymentGatewayQrisFeeType, setPaymentGatewayQrisFeeType] = useState<"FIXED" | "PERCENT">("FIXED");
   const [paymentGatewayQrisFeeValue, setPaymentGatewayQrisFeeValue] = useState("0");
-  const [showPoppayIntegratorToken, setShowPoppayIntegratorToken] = useState(false);
-  const [showPoppaySecretKey, setShowPoppaySecretKey] = useState(false);
-  const [showPoppayPassword, setShowPoppayPassword] = useState(false);
+  const [showMidtransServerKey, setShowMidtransServerKey] = useState(false);
+  const [showMidtransClientKey, setShowMidtransClientKey] = useState(false);
+  const [showPakasirApiKey, setShowPakasirApiKey] = useState(false);
+  const [showPakasirSandboxApiKey, setShowPakasirSandboxApiKey] = useState(false);
   const [digiflazzUsername, setDigiflazzUsername] = useState("");
   const [digiflazzApiKey, setDigiflazzApiKey] = useState("");
   const [digiflazzBaseUrl, setDigiflazzBaseUrl] = useState("https://api.digiflazz.com/v1");
@@ -138,16 +144,30 @@ export default function SettingsPage() {
         setSmtpUser(raw.SMTP_USER ?? "");
         setSmtpPass(raw.SMTP_PASS ?? "");
         setSmtpFrom(raw.SMTP_FROM ?? "");
-        setPoppayApiBaseUrl(raw.POPPAY_API_BASE_URL ?? envDefaults.POPPAY_API_BASE_URL ?? "");
-        setPoppayUrl(raw.POPPAY_URL ?? envDefaults.POPPAY_URL ?? "");
-        setPoppayPort(raw.POPPAY_PORT ?? envDefaults.POPPAY_PORT ?? "");
-        setPoppayVersion(raw.POPPAY_VERSION ?? envDefaults.POPPAY_VERSION ?? "");
-        setPoppayIntegratorToken(raw.POPPAY_INTEGRATOR_TOKEN ?? envDefaults.POPPAY_INTEGRATOR_TOKEN ?? "");
-        setPoppayAggregatorCode(raw.POPPAY_AGGREGATOR_CODE ?? envDefaults.POPPAY_AGGREGATOR_CODE ?? "");
-        setPoppaySecretKey(raw.POPPAY_SECRET_KEY ?? envDefaults.POPPAY_SECRET_KEY ?? "");
-        setPoppayMerchantAccountNumber(raw.POPPAY_MERCHANT_ACCOUNT_NUMBER ?? envDefaults.POPPAY_MERCHANT_ACCOUNT_NUMBER ?? "");
-        setPoppayEmail(raw.POPPAY_EMAIL ?? envDefaults.POPPAY_EMAIL ?? "");
-        setPoppayPassword(raw.POPPAY_PASSWORD ?? envDefaults.POPPAY_PASSWORD ?? "");
+        setPaymentGatewayDefault(
+          (raw.PAYMENT_GATEWAY_DEFAULT ?? envDefaults.PAYMENT_GATEWAY_DEFAULT ?? "MIDTRANS") === "PAKASIR"
+            ? "PAKASIR"
+            : "MIDTRANS"
+        );
+        setMidtransMode(
+          (raw.MIDTRANS_MODE ?? envDefaults.MIDTRANS_MODE ?? "sandbox") === "production"
+            ? "production"
+            : "sandbox"
+        );
+        setMidtransServerKey(raw.MIDTRANS_SERVER_KEY ?? envDefaults.MIDTRANS_SERVER_KEY ?? "");
+        setMidtransClientKey(raw.MIDTRANS_CLIENT_KEY ?? envDefaults.MIDTRANS_CLIENT_KEY ?? "");
+        setMidtransMerchantId(raw.MIDTRANS_MERCHANT_ID ?? envDefaults.MIDTRANS_MERCHANT_ID ?? "");
+        setMidtransSnapBaseUrl(raw.MIDTRANS_SNAP_BASE_URL ?? envDefaults.MIDTRANS_SNAP_BASE_URL ?? "");
+        setMidtransApiBaseUrl(raw.MIDTRANS_API_BASE_URL ?? envDefaults.MIDTRANS_API_BASE_URL ?? "");
+        setPakasirMode(
+          (raw.PROVIDER_PAKASIR_MODE ?? envDefaults.PROVIDER_PAKASIR_MODE ?? "sandbox") === "production"
+            ? "production"
+            : "sandbox"
+        );
+        setPakasirSlug(raw.PAKASIR_SLUG ?? envDefaults.PAKASIR_SLUG ?? "");
+        setPakasirApiKey(raw.PAKASIR_API_KEY ?? envDefaults.PAKASIR_API_KEY ?? "");
+        setPakasirSandboxSlug(raw.PAKASIR_SANDBOX_SLUG ?? envDefaults.PAKASIR_SANDBOX_SLUG ?? "");
+        setPakasirSandboxApiKey(raw.PAKASIR_SANDBOX_API_KEY ?? envDefaults.PAKASIR_SANDBOX_API_KEY ?? "");
         setPaymentGatewayQrisFeeType(
           (raw.PAYMENT_GATEWAY_QRIS_FEE_TYPE ?? envDefaults.PAYMENT_GATEWAY_QRIS_FEE_TYPE ?? "FIXED") === "PERCENT"
             ? "PERCENT"
@@ -348,20 +368,22 @@ export default function SettingsPage() {
     }
   }
 
-  async function savePoppaySettings() {
-    setSiteSaving("poppay_all");
+  async function savePaymentGatewaySettings() {
+    setSiteSaving("payment_gateway_all");
     try {
       const pairs: { key: string; value: string }[] = [
-        { key: "POPPAY_API_BASE_URL", value: poppayApiBaseUrl },
-        { key: "POPPAY_URL", value: poppayUrl },
-        { key: "POPPAY_PORT", value: poppayPort },
-        { key: "POPPAY_VERSION", value: poppayVersion },
-        { key: "POPPAY_INTEGRATOR_TOKEN", value: poppayIntegratorToken },
-        { key: "POPPAY_AGGREGATOR_CODE", value: poppayAggregatorCode },
-        { key: "POPPAY_SECRET_KEY", value: poppaySecretKey },
-        { key: "POPPAY_MERCHANT_ACCOUNT_NUMBER", value: poppayMerchantAccountNumber },
-        { key: "POPPAY_EMAIL", value: poppayEmail },
-        { key: "POPPAY_PASSWORD", value: poppayPassword },
+        { key: "PAYMENT_GATEWAY_DEFAULT", value: paymentGatewayDefault },
+        { key: "MIDTRANS_MODE", value: midtransMode },
+        { key: "MIDTRANS_SERVER_KEY", value: midtransServerKey },
+        { key: "MIDTRANS_CLIENT_KEY", value: midtransClientKey },
+        { key: "MIDTRANS_MERCHANT_ID", value: midtransMerchantId },
+        { key: "MIDTRANS_SNAP_BASE_URL", value: midtransSnapBaseUrl },
+        { key: "MIDTRANS_API_BASE_URL", value: midtransApiBaseUrl },
+        { key: "PROVIDER_PAKASIR_MODE", value: pakasirMode },
+        { key: "PAKASIR_SLUG", value: pakasirSlug },
+        { key: "PAKASIR_API_KEY", value: pakasirApiKey },
+        { key: "PAKASIR_SANDBOX_SLUG", value: pakasirSandboxSlug },
+        { key: "PAKASIR_SANDBOX_API_KEY", value: pakasirSandboxApiKey },
         { key: "PAYMENT_GATEWAY_QRIS_FEE_TYPE", value: paymentGatewayQrisFeeType },
         { key: "PAYMENT_GATEWAY_QRIS_FEE_VALUE", value: paymentGatewayQrisFeeValue },
       ];
@@ -378,9 +400,9 @@ export default function SettingsPage() {
           return;
         }
       }
-      toast.success("Konfigurasi Poppay berhasil disimpan");
+      toast.success("Konfigurasi payment gateway berhasil disimpan");
     } catch {
-      toast.error("Gagal menyimpan konfigurasi Poppay");
+      toast.error("Gagal menyimpan konfigurasi payment gateway");
     } finally {
       setSiteSaving(null);
     }
@@ -677,7 +699,7 @@ export default function SettingsPage() {
               {/* Site Name */}
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Nama Website</label>
-                <div className="flex flex-col sm:flex-row gap-2">
+                <div className="admin-setting-row flex flex-col sm:flex-row gap-2">
                   <input
                     type="text"
                     value={siteName}
@@ -688,7 +710,7 @@ export default function SettingsPage() {
                   <button
                     onClick={() => saveSiteSetting("site_name", siteName, "Nama Website")}
                     disabled={siteSaving === "site_name"}
-                    className="w-full sm:w-auto px-4 py-2 rounded-xl bg-[#2563eb] text-white text-xs font-bold hover:bg-blue-700 transition disabled:opacity-50 flex-shrink-0"
+                    className="admin-setting-save inline-flex w-fit min-w-[112px] items-center justify-center px-4 py-2 rounded-xl bg-[#2563eb] text-white text-xs font-bold hover:bg-blue-700 transition disabled:opacity-50 flex-shrink-0"
                   >
                     {siteSaving === "site_name" ? "..." : "💾 Simpan"}
                   </button>
@@ -698,7 +720,7 @@ export default function SettingsPage() {
               {/* Site Logo */}
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">URL Logo</label>
-                <div className="flex flex-col sm:flex-row gap-2">
+                <div className="admin-setting-row flex flex-col sm:flex-row gap-2">
                   <input
                     type="url"
                     value={siteLogo}
@@ -709,7 +731,7 @@ export default function SettingsPage() {
                   <button
                     onClick={() => saveSiteSetting("site_logo", siteLogo, "Logo")}
                     disabled={siteSaving === "site_logo"}
-                    className="w-full sm:w-auto px-4 py-2 rounded-xl bg-[#2563eb] text-white text-xs font-bold hover:bg-blue-700 transition disabled:opacity-50 flex-shrink-0"
+                    className="admin-setting-save inline-flex w-fit min-w-[112px] items-center justify-center px-4 py-2 rounded-xl bg-[#2563eb] text-white text-xs font-bold hover:bg-blue-700 transition disabled:opacity-50 flex-shrink-0"
                   >
                     {siteSaving === "site_logo" ? "..." : "💾 Simpan"}
                   </button>
@@ -726,7 +748,7 @@ export default function SettingsPage() {
               {/* Site Favicon */}
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">URL Favicon</label>
-                <div className="flex flex-col sm:flex-row gap-2">
+                <div className="admin-setting-row flex flex-col sm:flex-row gap-2">
                   <input
                     type="url"
                     value={siteFavicon}
@@ -737,7 +759,7 @@ export default function SettingsPage() {
                   <button
                     onClick={() => saveSiteSetting("site_favicon", siteFavicon, "Favicon")}
                     disabled={siteSaving === "site_favicon"}
-                    className="w-full sm:w-auto px-4 py-2 rounded-xl bg-[#2563eb] text-white text-xs font-bold hover:bg-blue-700 transition disabled:opacity-50 flex-shrink-0"
+                    className="admin-setting-save inline-flex w-fit min-w-[112px] items-center justify-center px-4 py-2 rounded-xl bg-[#2563eb] text-white text-xs font-bold hover:bg-blue-700 transition disabled:opacity-50 flex-shrink-0"
                   >
                     {siteSaving === "site_favicon" ? "..." : "💾 Simpan"}
                   </button>
@@ -754,7 +776,7 @@ export default function SettingsPage() {
               {/* Site Description */}
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Deskripsi (Meta Description)</label>
-                <div className="flex flex-col sm:flex-row gap-2">
+                <div className="admin-setting-row flex flex-col sm:flex-row gap-2">
                   <textarea
                     value={siteDescription}
                     onChange={(e) => setSiteDescription(e.target.value)}
@@ -765,7 +787,7 @@ export default function SettingsPage() {
                   <button
                     onClick={() => saveSiteSetting("site_description", siteDescription, "Deskripsi")}
                     disabled={siteSaving === "site_description"}
-                    className="w-full sm:w-auto px-4 py-2 rounded-xl bg-[#2563eb] text-white text-xs font-bold hover:bg-blue-700 transition disabled:opacity-50 flex-shrink-0 sm:self-start"
+                    className="admin-setting-save inline-flex w-fit min-w-[112px] items-center justify-center px-4 py-2 rounded-xl bg-[#2563eb] text-white text-xs font-bold hover:bg-blue-700 transition disabled:opacity-50 flex-shrink-0"
                   >
                     {siteSaving === "site_description" ? "..." : "💾 Simpan"}
                   </button>
@@ -775,7 +797,7 @@ export default function SettingsPage() {
               {/* Site Keywords */}
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Keywords (Meta Keywords)</label>
-                <div className="flex flex-col sm:flex-row gap-2">
+                <div className="admin-setting-row flex flex-col sm:flex-row gap-2">
                   <input
                     type="text"
                     value={siteKeywords}
@@ -786,7 +808,7 @@ export default function SettingsPage() {
                   <button
                     onClick={() => saveSiteSetting("site_keywords", siteKeywords, "Keywords")}
                     disabled={siteSaving === "site_keywords"}
-                    className="w-full sm:w-auto px-4 py-2 rounded-xl bg-[#2563eb] text-white text-xs font-bold hover:bg-blue-700 transition disabled:opacity-50 flex-shrink-0"
+                    className="admin-setting-save inline-flex w-fit min-w-[112px] items-center justify-center px-4 py-2 rounded-xl bg-[#2563eb] text-white text-xs font-bold hover:bg-blue-700 transition disabled:opacity-50 flex-shrink-0"
                   >
                     {siteSaving === "site_keywords" ? "..." : "💾 Simpan"}
                   </button>
@@ -820,7 +842,7 @@ export default function SettingsPage() {
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">
                   Fonnte API Token
                 </label>
-                <div className="flex flex-col sm:flex-row gap-2">
+                <div className="admin-setting-row flex flex-col sm:flex-row gap-2">
                   <div className="flex-1 relative">
                     <input
                       type={showFonnteToken ? "text" : "password"}
@@ -865,7 +887,7 @@ export default function SettingsPage() {
                   <button
                     onClick={() => saveSiteSetting("FONNTE_TOKEN", fonnteToken, "Fonnte Token")}
                     disabled={siteSaving === "FONNTE_TOKEN"}
-                    className="w-full sm:w-auto px-4 py-2 rounded-xl bg-[#25D366] text-white text-xs font-bold hover:bg-[#1da851] transition disabled:opacity-50 flex-shrink-0"
+                    className="admin-setting-save inline-flex w-fit min-w-[112px] items-center justify-center px-4 py-2 rounded-xl bg-[#25D366] text-white text-xs font-bold hover:bg-[#1da851] transition disabled:opacity-50 flex-shrink-0"
                   >
                     {siteSaving === "FONNTE_TOKEN" ? "..." : "💾 Simpan"}
                   </button>
@@ -1053,244 +1075,236 @@ export default function SettingsPage() {
 
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
             <div className="px-5 py-4 border-b border-slate-100">
-              <h2 className="text-sm font-bold text-slate-700">💠 Poppay QRIS</h2>
+              <h2 className="text-sm font-bold text-slate-700">Payment Gateway</h2>
               <p className="text-[11px] text-slate-400 mt-0.5">
-                Kredensial Poppay disimpan di database dan akan override nilai di `.env`. Saat Poppay aktif, metode pembayaran public akan dibatasi ke QRIS.
+                Checkout dan top up saldo sekarang memakai Midtrans atau Pakasir. Nilai database override `.env`.
               </p>
             </div>
 
-            <div className="px-5 py-4 space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">
-                  API Base URL
-                </label>
-                <input
-                  type="text"
-                  value={poppayApiBaseUrl}
-                  onChange={(e) => setPoppayApiBaseUrl(e.target.value)}
-                  placeholder="https://api.example.com:443"
-                  className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl outline-none focus:border-blue-400 font-mono text-xs"
-                />
-                <p className="text-[10px] text-slate-400 mt-1">
-                  Jika diisi, sistem langsung pakai base URL ini. Jika kosong, sistem akan memakai Host + Port di bawah.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">
-                    Host / URL
-                  </label>
-                  <input
-                    type="text"
-                    value={poppayUrl}
-                    onChange={(e) => setPoppayUrl(e.target.value)}
-                    placeholder="api.example.com"
-                    className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl outline-none focus:border-blue-400 font-mono text-xs"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">
-                    Port
-                  </label>
-                  <input
-                    type="text"
-                    value={poppayPort}
-                    onChange={(e) => setPoppayPort(e.target.value)}
-                    placeholder="443"
-                    className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl outline-none focus:border-blue-400 font-mono text-xs"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">
-                    Version
-                  </label>
-                  <input
-                    type="text"
-                    value={poppayVersion}
-                    onChange={(e) => setPoppayVersion(e.target.value)}
-                    placeholder="v1"
-                    className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl outline-none focus:border-blue-400 font-mono text-xs"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">
-                  Integrator Token
-                </label>
-                <div className="relative">
-                  <input
-                    type={showPoppayIntegratorToken ? "text" : "password"}
-                    value={poppayIntegratorToken}
-                    onChange={(e) => setPoppayIntegratorToken(e.target.value)}
-                    placeholder="Bearer token dari Poppay"
-                    className="w-full px-3 py-2.5 pr-14 text-sm border border-slate-200 rounded-xl outline-none focus:border-blue-400 font-mono text-xs"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPoppayIntegratorToken((v) => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-medium text-slate-400 hover:text-slate-600 transition"
-                    tabIndex={-1}
-                  >
-                    {showPoppayIntegratorToken ? "Hide" : "Show"}
-                  </button>
-                </div>
-              </div>
-
+            <div className="px-5 py-4 space-y-5">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">
-                    Aggregator Code
+                    Default Gateway
                   </label>
-                  <input
-                    type="text"
-                    value={poppayAggregatorCode}
-                    onChange={(e) => setPoppayAggregatorCode(e.target.value)}
-                    placeholder="3BnbE0lmRLRL1GltciUlTaVqbCV"
-                    className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl outline-none focus:border-blue-400 font-mono text-xs"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">
-                    Merchant Account Number
-                  </label>
-                  <input
-                    type="text"
-                    value={poppayMerchantAccountNumber}
-                    onChange={(e) => setPoppayMerchantAccountNumber(e.target.value)}
-                    placeholder="1775127696315"
-                    className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl outline-none focus:border-blue-400 font-mono text-xs"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">
-                    Login Email
-                  </label>
-                  <input
-                    type="email"
-                    value={poppayEmail}
-                    onChange={(e) => setPoppayEmail(e.target.value)}
-                    placeholder="finance@poppay.com"
-                    className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl outline-none focus:border-blue-400 font-mono text-xs"
-                  />
-                  <p className="text-[10px] text-slate-400 mt-1">
-                    Email akun API/login Poppay untuk mengambil access token.
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">
-                    Login Password
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showPoppayPassword ? "text" : "password"}
-                      value={poppayPassword}
-                      onChange={(e) => setPoppayPassword(e.target.value)}
-                      placeholder="Password akun Poppay"
-                      className="w-full px-3 py-2.5 pr-14 text-sm border border-slate-200 rounded-xl outline-none focus:border-blue-400 font-mono text-xs"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPoppayPassword((v) => !v)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-medium text-slate-400 hover:text-slate-600 transition"
-                      tabIndex={-1}
-                    >
-                      {showPoppayPassword ? "Hide" : "Show"}
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">
-                  Secret Key
-                </label>
-                <div className="relative">
-                  <input
-                    type={showPoppaySecretKey ? "text" : "password"}
-                    value={poppaySecretKey}
-                    onChange={(e) => setPoppaySecretKey(e.target.value)}
-                    placeholder="Secret key untuk verifikasi callback/signature"
-                    className="w-full px-3 py-2.5 pr-14 text-sm border border-slate-200 rounded-xl outline-none focus:border-blue-400 font-mono text-xs"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPoppaySecretKey((v) => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-medium text-slate-400 hover:text-slate-600 transition"
-                    tabIndex={-1}
+                  <select
+                    value={paymentGatewayDefault}
+                    onChange={(e) => setPaymentGatewayDefault(e.target.value === "PAKASIR" ? "PAKASIR" : "MIDTRANS")}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-400"
                   >
-                    {showPoppaySecretKey ? "Hide" : "Show"}
-                  </button>
+                    <option value="MIDTRANS">Midtrans</option>
+                    <option value="PAKASIR">Pakasir</option>
+                  </select>
                 </div>
-              </div>
-
-              <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-4">
-                <div className="mb-3">
-                  <h3 className="text-xs font-bold uppercase tracking-wide text-slate-600">Biaya Admin QRIS</h3>
-                  <p className="mt-1 text-[11px] leading-relaxed text-slate-400">
-                    Berlaku global untuk checkout Payment Gateway Poppay QRIS dan top up saldo.
-                  </p>
-                </div>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div>
-                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">
-                      Tipe Biaya
-                    </label>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">
+                    Biaya QRIS
+                  </label>
+                  <div className="grid grid-cols-[130px_1fr] gap-2">
                     <select
                       value={paymentGatewayQrisFeeType}
                       onChange={(e) => setPaymentGatewayQrisFeeType(e.target.value === "PERCENT" ? "PERCENT" : "FIXED")}
-                      className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-400"
+                      className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-400"
                     >
-                      <option value="FIXED">Nominal Tetap</option>
-                      <option value="PERCENT">Persentase</option>
+                      <option value="FIXED">Tetap</option>
+                      <option value="PERCENT">Persen</option>
                     </select>
-                  </div>
-                  <div>
-                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">
-                      Nilai Biaya
-                    </label>
                     <input
                       type="number"
                       min="0"
                       step={paymentGatewayQrisFeeType === "PERCENT" ? "0.01" : "1"}
                       value={paymentGatewayQrisFeeValue}
                       onChange={(e) => setPaymentGatewayQrisFeeValue(e.target.value)}
-                      placeholder={paymentGatewayQrisFeeType === "PERCENT" ? "Contoh: 2.5" : "Contoh: 1000"}
-                      className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-400"
+                      className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-400"
                     />
-                    <p className="mt-1 text-[10px] text-slate-400">
-                      {paymentGatewayQrisFeeType === "PERCENT"
-                        ? "Biaya dihitung persen dari nilai transaksi."
-                        : "Biaya ditambahkan sebagai nominal tetap per transaksi."}
-                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-4 space-y-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-xs font-bold uppercase tracking-wide text-slate-600">Midtrans</h3>
+                    <p className="mt-1 text-[11px] text-slate-400">Gunakan Snap redirect page untuk QRIS, e-wallet, dan VA.</p>
+                  </div>
+                  <select
+                    value={midtransMode}
+                    onChange={(e) => setMidtransMode(e.target.value === "production" ? "production" : "sandbox")}
+                    className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold outline-none focus:border-blue-400"
+                  >
+                    <option value="sandbox">SANDBOX</option>
+                    <option value="production">PRODUCTION</option>
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Server Key</label>
+                    <div className="relative">
+                      <input
+                        type={showMidtransServerKey ? "text" : "password"}
+                        value={midtransServerKey}
+                        onChange={(e) => setMidtransServerKey(e.target.value)}
+                        placeholder="SB-Mid-server-..."
+                        className="w-full px-3 py-2.5 pr-14 text-sm border border-slate-200 rounded-xl outline-none focus:border-blue-400 font-mono text-xs"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowMidtransServerKey((v) => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-medium text-slate-400 hover:text-slate-600 transition"
+                        tabIndex={-1}
+                      >
+                        {showMidtransServerKey ? "Hide" : "Show"}
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Client Key</label>
+                    <div className="relative">
+                      <input
+                        type={showMidtransClientKey ? "text" : "password"}
+                        value={midtransClientKey}
+                        onChange={(e) => setMidtransClientKey(e.target.value)}
+                        placeholder="SB-Mid-client-..."
+                        className="w-full px-3 py-2.5 pr-14 text-sm border border-slate-200 rounded-xl outline-none focus:border-blue-400 font-mono text-xs"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowMidtransClientKey((v) => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-medium text-slate-400 hover:text-slate-600 transition"
+                        tabIndex={-1}
+                      >
+                        {showMidtransClientKey ? "Hide" : "Show"}
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Merchant ID</label>
+                    <input
+                      type="text"
+                      value={midtransMerchantId}
+                      onChange={(e) => setMidtransMerchantId(e.target.value)}
+                      className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl outline-none focus:border-blue-400 font-mono text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Custom Base URL</label>
+                    <input
+                      type="text"
+                      value={midtransApiBaseUrl}
+                      onChange={(e) => setMidtransApiBaseUrl(e.target.value)}
+                      placeholder="Kosongkan untuk default sandbox/production"
+                      className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl outline-none focus:border-blue-400 font-mono text-xs"
+                    />
+                  </div>
+                </div>
+
+                <input
+                  type="text"
+                  value={midtransSnapBaseUrl}
+                  onChange={(e) => setMidtransSnapBaseUrl(e.target.value)}
+                  placeholder="MIDTRANS_SNAP_BASE_URL opsional"
+                  className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl outline-none focus:border-blue-400 font-mono text-xs"
+                />
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-4 space-y-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-xs font-bold uppercase tracking-wide text-slate-600">Pakasir</h3>
+                    <p className="mt-1 text-[11px] text-slate-400">Mode sandbox memakai kredensial sandbox jika tersedia, lalu fallback ke production.</p>
+                  </div>
+                  <select
+                    value={pakasirMode}
+                    onChange={(e) => setPakasirMode(e.target.value === "production" ? "production" : "sandbox")}
+                    className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold outline-none focus:border-blue-400"
+                  >
+                    <option value="sandbox">SANDBOX</option>
+                    <option value="production">PRODUCTION</option>
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Production Slug</label>
+                    <input
+                      type="text"
+                      value={pakasirSlug}
+                      onChange={(e) => setPakasirSlug(e.target.value)}
+                      className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl outline-none focus:border-blue-400 font-mono text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Production API Key</label>
+                    <div className="relative">
+                      <input
+                        type={showPakasirApiKey ? "text" : "password"}
+                        value={pakasirApiKey}
+                        onChange={(e) => setPakasirApiKey(e.target.value)}
+                        className="w-full px-3 py-2.5 pr-14 text-sm border border-slate-200 rounded-xl outline-none focus:border-blue-400 font-mono text-xs"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPakasirApiKey((v) => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-medium text-slate-400 hover:text-slate-600 transition"
+                        tabIndex={-1}
+                      >
+                        {showPakasirApiKey ? "Hide" : "Show"}
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Sandbox Slug</label>
+                    <input
+                      type="text"
+                      value={pakasirSandboxSlug}
+                      onChange={(e) => setPakasirSandboxSlug(e.target.value)}
+                      className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl outline-none focus:border-blue-400 font-mono text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Sandbox API Key</label>
+                    <div className="relative">
+                      <input
+                        type={showPakasirSandboxApiKey ? "text" : "password"}
+                        value={pakasirSandboxApiKey}
+                        onChange={(e) => setPakasirSandboxApiKey(e.target.value)}
+                        className="w-full px-3 py-2.5 pr-14 text-sm border border-slate-200 rounded-xl outline-none focus:border-blue-400 font-mono text-xs"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPakasirSandboxApiKey((v) => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-medium text-slate-400 hover:text-slate-600 transition"
+                        tabIndex={-1}
+                      >
+                        {showPakasirSandboxApiKey ? "Hide" : "Show"}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
 
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-2 border-t border-slate-100">
-                <div>
-                  {poppayIntegratorToken && poppayAggregatorCode && poppayMerchantAccountNumber && poppayEmail && poppayPassword ? (
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-green-400 flex-shrink-0" />
-                      <span className="text-[10px] text-green-600 font-medium">Poppay sudah dikonfigurasi di database</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0" />
-                      <span className="text-[10px] text-amber-600 font-medium">Konfigurasi Poppay belum lengkap</span>
-                    </div>
-                  )}
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${midtransServerKey ? "bg-green-400" : "bg-amber-400"}`} />
+                    <span className={`text-[10px] font-medium ${midtransServerKey ? "text-green-600" : "text-amber-600"}`}>
+                      Midtrans {midtransServerKey ? "sudah dikonfigurasi" : "belum lengkap"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${(pakasirSlug && pakasirApiKey) || (pakasirSandboxSlug && pakasirSandboxApiKey) ? "bg-green-400" : "bg-amber-400"}`} />
+                    <span className={`text-[10px] font-medium ${(pakasirSlug && pakasirApiKey) || (pakasirSandboxSlug && pakasirSandboxApiKey) ? "text-green-600" : "text-amber-600"}`}>
+                      Pakasir {(pakasirSlug && pakasirApiKey) || (pakasirSandboxSlug && pakasirSandboxApiKey) ? "sudah dikonfigurasi" : "belum lengkap"}
+                    </span>
+                  </div>
                 </div>
                 <button
-                  onClick={savePoppaySettings}
-                  disabled={siteSaving === "poppay_all"}
+                  onClick={savePaymentGatewaySettings}
+                  disabled={siteSaving === "payment_gateway_all"}
                   className="px-4 py-2 rounded-xl bg-[#2563eb] text-white text-xs font-bold hover:bg-blue-700 transition disabled:opacity-50 flex-shrink-0"
                 >
-                  {siteSaving === "poppay_all" ? "Menyimpan…" : "💾 Simpan Konfigurasi Poppay"}
+                  {siteSaving === "payment_gateway_all" ? "Menyimpan…" : "Simpan Payment Gateway"}
                 </button>
               </div>
             </div>
