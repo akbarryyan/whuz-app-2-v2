@@ -247,11 +247,16 @@ function OrderDetailPageContent() {
     canShowPaymentFlow &&
     order.paymentInvoice?.status === "PENDING" &&
     (!!order.paymentInvoice?.paymentUrl || !!order.paymentInvoice?.paymentNumber);
-  const hasInternalQris =
+  const isQrisInvoice =
     canShowPaymentFlow &&
     order.paymentInvoice?.status === "PENDING" &&
-    order.paymentInvoice?.method?.toLowerCase() === "qris" &&
-    !!order.paymentInvoice?.paymentNumber;
+    !!order.paymentInvoice?.method?.toLowerCase().includes("qris");
+  const qrisImageUrl = isQrisInvoice
+    ? order.paymentInvoice?.paymentNumber
+      ? buildQrImageUrl(order.paymentInvoice.paymentNumber)
+      : order.paymentInvoice?.paymentUrl ?? null
+    : null;
+  const hasQrisDisplay = !!qrisImageUrl;
   const isQrisExpired =
     canShowPaymentFlow &&
     order.paymentInvoice?.status === "PENDING" &&
@@ -588,13 +593,13 @@ function OrderDetailPageContent() {
               {/* CTA — only show when still PENDING */}
               {isPendingPayment && (
                 <div className="px-4 pb-4 space-y-3">
-                  {hasInternalQris && order.paymentInvoice.paymentNumber && (
+                  {hasQrisDisplay && (
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 lg:border-white/10 lg:bg-white/5">
                       <p className="text-xs font-bold text-slate-700">
                         Scan QRIS untuk membayar
                       </p>
                       <p className="mt-1 text-[11px] text-slate-500 lg:text-slate-400">
-                        QR ditampilkan langsung di aplikasi dan berlaku selama 30 menit sejak dibuat.
+                        QR ditampilkan langsung di aplikasi dan berlaku sampai batas bayar invoice.
                       </p>
                       {remainingSeconds !== null && (
                         <div className={`mt-3 rounded-2xl px-3 py-2 text-center ${
@@ -617,7 +622,7 @@ function OrderDetailPageContent() {
                         <div className={`rounded-[28px] bg-white p-3 shadow-sm transition lg:shadow-none ${isQrisExpired ? "opacity-50 grayscale" : ""}`}>
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
-                            src={buildQrImageUrl(order.paymentInvoice.paymentNumber)}
+                            src={qrisImageUrl ?? ""}
                             alt="QRIS Payment"
                             className="h-64 w-64 rounded-2xl border border-slate-100"
                           />
@@ -639,19 +644,38 @@ function OrderDetailPageContent() {
                             Buat Pesanan Baru
                           </button>
                         </div>
-                      ) : !isQrisExpired ? (
+                      ) : !isQrisExpired && order.paymentInvoice.paymentNumber ? (
                         <button
                           onClick={handleCopyQrString}
                           className="mt-4 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 lg:border-white/10 lg:bg-white/5 lg:text-slate-200 lg:hover:bg-white/10"
                         >
                           {copyingQr ? "Menyalin..." : copyQrLabel}
                         </button>
+                      ) : !isQrisExpired && order.paymentInvoice.paymentUrl ? (
+                        <a
+                          href={order.paymentInvoice.paymentUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-4 block w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-center text-sm font-semibold text-slate-700 transition hover:bg-slate-50 lg:border-white/10 lg:bg-white/5 lg:text-slate-200 lg:hover:bg-white/10"
+                        >
+                          Buka QRIS di Tab Baru
+                        </a>
                       ) : (
                         <div className="mt-4 rounded-xl border border-slate-200 bg-white px-4 py-3 text-center text-sm font-semibold text-slate-500 lg:border-white/10 lg:bg-white/5 lg:text-slate-300">
                           QRIS ini sudah tidak aktif.
                         </div>
                       )}
                     </div>
+                  )}
+                  {!hasQrisDisplay && order.paymentInvoice.paymentUrl && (
+                    <a
+                      href={order.paymentInvoice.paymentUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="block w-full rounded-xl bg-[#003D99] px-4 py-3 text-center text-sm font-bold text-white transition hover:bg-[#00327d]"
+                    >
+                      Buka Halaman Pembayaran
+                    </a>
                   )}
                 </div>
               )}

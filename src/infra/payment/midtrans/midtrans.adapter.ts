@@ -11,8 +11,18 @@ import { getPaymentGatewayFeeConfig, getSiteConfigValue, getSiteName } from "@/l
 type MidtransMode = "sandbox" | "production";
 
 interface MidtransCreateResponse {
+  order_id?: string;
+  transaction_id?: string;
+  transaction_status?: string;
+  payment_type?: string;
   token?: string;
   redirect_url?: string;
+  qr_string?: string;
+  actions?: Array<{
+    name?: string;
+    method?: string;
+    url?: string;
+  }>;
   error_messages?: string[];
 }
 
@@ -56,39 +66,62 @@ export class MidtransAdapter implements IPaymentGatewayPort {
     const totalPayment = Math.round(amount + fee);
     const siteName = await getSiteName();
 
-    const response = await fetch(`${await this.getSnapBaseUrl()}/snap/v1/transactions`, {
-      method: "POST",
-      headers: {
-        Authorization: await this.getAuthorizationHeader(),
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify({
-        transaction_details: {
-          order_id: input.orderId,
-          gross_amount: totalPayment,
+    const isQris = method === "qris";
+    const response = await fetch(
+      isQris ? `${await this.getApiBaseUrl()}/v2/charge` : `${await this.getSnapBaseUrl()}/snap/v1/transactions`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: await this.getAuthorizationHeader(),
+          "Content-Type": "application/json",
+          Accept: "application/json",
         },
-        item_details: buildItemDetails(input, fee),
-        customer_details: {
-          first_name: input.payerName?.trim() || `${siteName} Customer`,
-          email: input.payerEmail?.trim() || undefined,
-        },
-        enabled_payments: method ? [method] : undefined,
-        callbacks: input.redirectUrl ? { finish: input.redirectUrl } : undefined,
-      }),
-    });
+        body: JSON.stringify(
+          isQris
+            ? {
+                payment_type: "qris",
+                qris: { acquirer: "gopay" },
+                transaction_details: {
+                  order_id: input.orderId,
+                  gross_amount: totalPayment,
+                },
+                item_details: buildItemDetails(input, fee),
+                customer_details: {
+                  first_name: input.payerName?.trim() || `${siteName} Customer`,
+                  email: input.payerEmail?.trim() || undefined,
+                },
+              }
+            : {
+                transaction_details: {
+                  order_id: input.orderId,
+                  gross_amount: totalPayment,
+                },
+                item_details: buildItemDetails(input, fee),
+                customer_details: {
+                  first_name: input.payerName?.trim() || `${siteName} Customer`,
+                  email: input.payerEmail?.trim() || undefined,
+                },
+                enabled_payments: method ? [method] : undefined,
+                callbacks: input.redirectUrl ? { finish: input.redirectUrl } : undefined,
+              }
+        ),
+      }
+    );
 
     const raw = (await response.json().catch(() => ({}))) as MidtransCreateResponse;
-    if (!response.ok || !raw.redirect_url) {
+    const qrisImageUrl = findMidtransActionUrl(raw.actions, "generate-qr-code");
+    const paymentUrl = isQris ? qrisImageUrl ?? raw.redirect_url ?? "" : raw.redirect_url ?? "";
+
+    if (!response.ok || (!paymentUrl && !raw.qr_string)) {
       throw new Error(raw.error_messages?.join(", ") || `Midtrans create payment failed (${response.status})`);
     }
 
     return {
-      invoiceId: input.orderId,
-      paymentUrl: raw.redirect_url,
-      paymentNumber: undefined,
+      invoiceId: raw.order_id ?? input.orderId,
+      paymentUrl,
+      paymentNumber: raw.qr_string,
       method: method ?? input.method ?? "all",
-	      amount,
+      amount,
       fee,
       totalPayment,
       expiredAt: new Date(Date.now() + 30 * 60 * 1000),
@@ -242,6 +275,18 @@ function buildItemDetails(input: CreatePaymentInput, fee: number) {
   }
 
   return items;
+}
+
+function findMidtransActionUrl(
+  actions: MidtransCreateResponse["actions"],
+  preferredName: string
+): string | undefined {
+  if (!actions?.length) return undefined;
+
+  return (
+    actions.find((action) => action.name === preferredName)?.url ??
+    actions.find((action) => action.url)?.url
+  );
 }
 
 export function mapMidtransStatus(raw: Pick<MidtransStatusResponse, "transaction_status" | "fraud_status">): DetailPaymentResult["status"] {

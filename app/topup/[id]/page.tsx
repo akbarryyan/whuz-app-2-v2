@@ -154,10 +154,15 @@ function TopupStatusPageContent({
   }
 
   const status = topup?.status ?? "PENDING";
-  const hasInternalQris =
+  const isQrisTopup =
     topup?.status === "PENDING" &&
-    topup?.paymentMethod?.toLowerCase() === "qris" &&
-    !!topup.paymentNumber;
+    !!topup?.paymentMethod?.toLowerCase().includes("qris");
+  const qrisImageUrl = isQrisTopup
+    ? topup?.paymentNumber
+      ? buildQrImageUrl(topup.paymentNumber)
+      : topup?.paymentUrl ?? null
+    : null;
+  const hasQrisDisplay = !!qrisImageUrl;
 
   return (
     <div className={`${quicksand.className} flex min-h-screen justify-center bg-[#F5F5F5] lg:bg-[#161B22]`}>
@@ -196,12 +201,12 @@ function TopupStatusPageContent({
                 </p>
               </div>
 
-              {hasInternalQris && topup?.paymentNumber && (
+              {hasQrisDisplay && (
                 <div className="w-full rounded-3xl border border-slate-200 bg-white p-5 shadow-sm lg:border-white/10 lg:bg-white/[0.04] lg:shadow-none">
                   <div className="flex flex-col items-center gap-4">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={buildQrImageUrl(topup.paymentNumber)}
+                      src={qrisImageUrl ?? ""}
                       alt="QRIS Top Up Wallet"
                       className="h-64 w-64 rounded-2xl border border-slate-200 bg-white p-3"
                     />
