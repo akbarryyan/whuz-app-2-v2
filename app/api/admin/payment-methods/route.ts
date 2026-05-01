@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/src/infra/db/prisma";
-import { getDefaultPaymentMethodSeeds } from "@/src/infra/payment/payment-methods.config";
+import {
+  getDefaultPaymentMethodSeeds,
+  isStorefrontSupportedPaymentMethodKey,
+} from "@/src/infra/payment/payment-methods.config";
+import { normalizePaymentMethodKey } from "@/src/infra/payment/payment-gateway.factory";
 
 export const dynamic = "force-dynamic";
 
@@ -38,13 +42,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: "key, label, dan group wajib diisi." }, { status: 400 });
     }
 
-    const existing = await prisma.paymentMethod.findUnique({ where: { key } });
+    const normalizedKey = normalizePaymentMethodKey(key);
+    if (!isStorefrontSupportedPaymentMethodKey(normalizedKey)) {
+      return NextResponse.json({ success: false, error: "Metode pembayaran tidak didukung checkout." }, { status: 400 });
+    }
+
+    const existing = await prisma.paymentMethod.findUnique({ where: { key: normalizedKey } });
     if (existing) {
       return NextResponse.json({ success: false, error: "Key sudah digunakan." }, { status: 409 });
     }
 
     const method = await prisma.paymentMethod.create({
-      data: { key, label, group, imageUrl: imageUrl || null, sortOrder: sortOrder ?? 99, isActive: true },
+      data: { key: normalizedKey, label, group, imageUrl: imageUrl || null, sortOrder: sortOrder ?? 99, isActive: true },
     });
 
     return NextResponse.json({ success: true, data: method });

@@ -134,6 +134,10 @@ export default function AdminPaymentMethodsPage() {
             </button>
           </div>
 
+          <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+            Metode yang aktif di daftar bawah akan tampil di checkout. Matikan channel yang belum aktif di gateway aslinya.
+          </div>
+
           {loading ? (
             <div className="bg-white rounded-2xl p-8 text-center shadow-sm border border-slate-100">
               <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />

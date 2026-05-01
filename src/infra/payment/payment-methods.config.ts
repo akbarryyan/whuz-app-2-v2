@@ -12,6 +12,16 @@ export const PAYMENT_METHOD_DEFINITIONS: PaymentMethodDefinition[] = [
   { key: "midtrans_bni_va", label: "BNI Virtual Account", group: "VIRTUAL_ACCOUNT", imageUrl: null, sortOrder: 11 },
   { key: "midtrans_bri_va", label: "BRI Virtual Account", group: "VIRTUAL_ACCOUNT", imageUrl: null, sortOrder: 12 },
   { key: "pakasir_all", label: "Pakasir", group: "QRIS", imageUrl: null, sortOrder: 20 },
+  { key: "pakasir_qris", label: "QRIS Pakasir", group: "QRIS", imageUrl: null, sortOrder: 21 },
+  { key: "pakasir_bri_va", label: "BRI Virtual Account", group: "VIRTUAL_ACCOUNT", imageUrl: null, sortOrder: 30 },
+  { key: "pakasir_bni_va", label: "BNI Virtual Account", group: "VIRTUAL_ACCOUNT", imageUrl: null, sortOrder: 31 },
+  { key: "pakasir_cimb_niaga_va", label: "CIMB Niaga Virtual Account", group: "VIRTUAL_ACCOUNT", imageUrl: null, sortOrder: 32 },
+  { key: "pakasir_permata_va", label: "Permata Virtual Account", group: "VIRTUAL_ACCOUNT", imageUrl: null, sortOrder: 33 },
+  { key: "pakasir_maybank_va", label: "Maybank Virtual Account", group: "VIRTUAL_ACCOUNT", imageUrl: null, sortOrder: 34 },
+  { key: "pakasir_sampoerna_va", label: "Sampoerna Virtual Account", group: "VIRTUAL_ACCOUNT", imageUrl: null, sortOrder: 35 },
+  { key: "pakasir_bnc_va", label: "BNC Virtual Account", group: "VIRTUAL_ACCOUNT", imageUrl: null, sortOrder: 36 },
+  { key: "pakasir_atm_bersama_va", label: "ATM Bersama Virtual Account", group: "VIRTUAL_ACCOUNT", imageUrl: null, sortOrder: 37 },
+  { key: "pakasir_artha_graha_va", label: "Artha Graha Virtual Account", group: "VIRTUAL_ACCOUNT", imageUrl: null, sortOrder: 38 },
 ];
 
 export const STOREFRONT_SUPPORTED_PAYMENT_METHOD_KEYS = new Set(

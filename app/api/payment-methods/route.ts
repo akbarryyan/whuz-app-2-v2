@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPaymentGatewayFeeConfig } from "@/lib/site-config";
 import { prisma } from "@/src/infra/db/prisma";
-import {
-  getDefaultPaymentMethodSeeds,
-  isStorefrontSupportedPaymentMethodKey,
-} from "@/src/infra/payment/payment-methods.config";
+import { getDefaultPaymentMethodSeeds, isStorefrontSupportedPaymentMethodKey } from "@/src/infra/payment/payment-methods.config";
 
 export const dynamic = "force-dynamic";
 
@@ -29,21 +26,11 @@ export async function GET() {
 
     const storefrontMethods = methods.filter((item) => isStorefrontSupportedPaymentMethodKey(item.key));
 
-    const qrisMethod =
-      storefrontMethods.find((item) => item.key === "midtrans_qris") ??
-      methods.find((item) => item.key === "midtrans_qris") ?? {
-        id: "midtrans-qris",
-        key: "midtrans_qris",
-        label: "QRIS Midtrans",
-        group: "QRIS",
-        imageUrl: null,
-      };
-
     return NextResponse.json({
       success: true,
       gateway: "MULTI",
       feeConfig,
-      data: storefrontMethods.length > 0 ? storefrontMethods : [qrisMethod],
+      data: storefrontMethods,
     });
   } catch (error) {
     console.error("[PAYMENT METHODS GET ERROR]", error);
