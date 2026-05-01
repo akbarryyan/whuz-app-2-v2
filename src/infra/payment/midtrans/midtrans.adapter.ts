@@ -50,9 +50,10 @@ export class MidtransAdapter implements IPaymentGatewayPort {
 
   async createPayment(input: CreatePaymentInput): Promise<CreatePaymentResult> {
     const method = normalizeMidtransMethod(input.method);
+    const amount = Math.round(input.amount);
     const feeConfig = await getPaymentGatewayFeeConfig(method ?? "qris");
-    const fee = calculatePaymentGatewayFee(method ?? "qris", input.amount, feeConfig);
-    const totalPayment = input.amount + fee;
+    const fee = Math.round(calculatePaymentGatewayFee(method ?? "qris", amount, feeConfig));
+    const totalPayment = Math.round(amount + fee);
     const siteName = await getSiteName();
 
     const response = await fetch(`${await this.getSnapBaseUrl()}/snap/v1/transactions`, {
@@ -87,7 +88,7 @@ export class MidtransAdapter implements IPaymentGatewayPort {
       paymentUrl: raw.redirect_url,
       paymentNumber: undefined,
       method: method ?? input.method ?? "all",
-      amount: input.amount,
+	      amount,
       fee,
       totalPayment,
       expiredAt: new Date(Date.now() + 30 * 60 * 1000),
@@ -220,19 +221,21 @@ function normalizeMidtransMethod(method?: string): string | undefined {
 }
 
 function buildItemDetails(input: CreatePaymentInput, fee: number) {
+  const amount = Math.round(input.amount);
+  const roundedFee = Math.round(fee);
   const items = [
     {
       id: "product",
-      price: input.amount,
+      price: amount,
       quantity: 1,
       name: (input.description || input.orderId).slice(0, 50),
     },
   ];
 
-  if (fee > 0) {
+  if (roundedFee > 0) {
     items.push({
       id: "admin_fee",
-      price: fee,
+      price: roundedFee,
       quantity: 1,
       name: "Biaya admin",
     });

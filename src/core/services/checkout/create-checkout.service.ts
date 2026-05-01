@@ -118,8 +118,9 @@ export class CreateCheckoutService {
       ? Math.max(0, configuredSellingPrice - basePrice)
       : (tierPricing?.markup ?? Number(product.margin));
     const fee = 0; // Gateway fee added after we know method — update after PG call
-    const discount = Math.min(input.voucherDiscount ?? 0, basePrice + markup - 1); // Can't discount to below 1
-    const amount = Math.max(1, basePrice + markup - discount); // Customer pays after voucher discount
+    const grossAmount = Math.round(basePrice + markup);
+    const discount = Math.min(Math.round(input.voucherDiscount ?? 0), grossAmount - 1); // Can't discount to below 1
+    const amount = Math.max(1, Math.round(grossAmount - discount)); // IDR payments must be integer
     const sellerGrossProfit = sellerProduct ? Math.max(0, markup - discount) : 0;
     const sellerFeeAmount = sellerProduct
       ? this.calculateMerchantFee({
