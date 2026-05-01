@@ -68,51 +68,44 @@ export class MidtransAdapter implements IPaymentGatewayPort {
     const fee = Math.round(calculatePaymentGatewayFee(method ?? "qris", amount, feeConfig));
     const totalPayment = Math.round(amount + fee);
     const siteName = await getSiteName();
+    const transactionDetails = {
+      order_id: input.orderId,
+      gross_amount: totalPayment,
+    };
+    const itemDetails = buildItemDetails(input, fee);
+    const customerDetails = {
+      first_name: input.payerName?.trim() || `${siteName} Customer`,
+      email: input.payerEmail?.trim() || undefined,
+    };
 
     const isQris = method === "qris";
-    const response = await fetch(
-      isQris ? `${await this.getApiBaseUrl()}/v2/charge` : `${await this.getSnapBaseUrl()}/snap/v1/transactions`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: await this.getAuthorizationHeader(),
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify(
-          isQris
-            ? {
-                payment_type: "qris",
-                qris: { acquirer: "gopay" },
-                transaction_details: {
-                  order_id: input.orderId,
-                  gross_amount: totalPayment,
-                },
-                item_details: buildItemDetails(input, fee),
-                customer_details: {
-                  first_name: input.payerName?.trim() || `${siteName} Customer`,
-                  email: input.payerEmail?.trim() || undefined,
-                },
-              }
-            : {
-                transaction_details: {
-                  order_id: input.orderId,
-                  gross_amount: totalPayment,
-                },
-                item_details: buildItemDetails(input, fee),
-                customer_details: {
-                  first_name: input.payerName?.trim() || `${siteName} Customer`,
-                  email: input.payerEmail?.trim() || undefined,
-                },
-                enabled_payments: method ? [method] : undefined,
-                callbacks: input.redirectUrl ? { finish: input.redirectUrl } : undefined,
-              }
-        ),
-      }
-    );
 
-    const rawText = await response.text();
-    const raw = parseMidtransResponse<MidtransCreateResponse>(rawText);
+    let paymentResponse = isQris
+      ? await this.postMidtransCreate(`${await this.getApiBaseUrl()}/v2/charge`, {
+          payment_type: "qris",
+          transaction_details: transactionDetails,
+          item_details: itemDetails,
+          customer_details: customerDetails,
+        })
+      : await this.createSnapPayment({
+          transactionDetails,
+          itemDetails,
+          customerDetails,
+          method,
+          redirectUrl: input.redirectUrl,
+        });
+
+    if (isQris && isMidtransChannelInactive(paymentResponse.raw, paymentResponse.rawText)) {
+      paymentResponse = await this.createSnapPayment({
+        transactionDetails,
+        itemDetails,
+        customerDetails,
+        method,
+        redirectUrl: input.redirectUrl,
+      });
+    }
+
+    const { response, raw, rawText } = paymentResponse;
     const qrisImageUrl = findMidtransActionUrl(raw.actions, "generate-qr-code");
     const paymentUrl = isQris ? qrisImageUrl ?? raw.qr_code_url ?? raw.redirect_url ?? "" : raw.redirect_url ?? "";
 
@@ -131,6 +124,38 @@ export class MidtransAdapter implements IPaymentGatewayPort {
       expiredAt: new Date(Date.now() + 30 * 60 * 1000),
       raw,
     };
+  }
+
+  private async createSnapPayment(input: {
+    transactionDetails: { order_id: string; gross_amount: number };
+    itemDetails: ReturnType<typeof buildItemDetails>;
+    customerDetails: { first_name: string; email?: string };
+    method?: string;
+    redirectUrl?: string;
+  }) {
+    return this.postMidtransCreate(`${await this.getSnapBaseUrl()}/snap/v1/transactions`, {
+      transaction_details: input.transactionDetails,
+      item_details: input.itemDetails,
+      customer_details: input.customerDetails,
+      enabled_payments: input.method ? [input.method] : undefined,
+      callbacks: input.redirectUrl ? { finish: input.redirectUrl } : undefined,
+    });
+  }
+
+  private async postMidtransCreate(url: string, body: Record<string, unknown>) {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: await this.getAuthorizationHeader(),
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+
+    const rawText = await response.text();
+    const raw = parseMidtransResponse<MidtransCreateResponse>(rawText);
+    return { response, raw, rawText };
   }
 
   async detailPayment(orderId: string, amount: number): Promise<DetailPaymentResult> {
@@ -314,6 +339,19 @@ function formatMidtransError(
 
   const snippet = rawText.replace(/\s+/g, " ").trim().slice(0, 180);
   return snippet ? `${fallback}: ${snippet}` : fallback;
+}
+
+function isMidtransChannelInactive(
+  raw: Pick<MidtransCreateResponse, "error_messages" | "status_message">,
+  rawText: string
+): boolean {
+  const message = [
+    raw.status_message,
+    ...(raw.error_messages ?? []),
+    rawText,
+  ].join(" ").toLowerCase();
+
+  return message.includes("payment channel is not activated");
 }
 
 function normalizeMidtransBaseUrl(rawUrl: string, target: "api" | "snap"): string {
