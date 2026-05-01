@@ -51,6 +51,7 @@ export async function GET() {
         DIGIFLAZZ_USERNAME: process.env.DIGIFLAZZ_USERNAME ?? "",
         DIGIFLAZZ_API_KEY: process.env.DIGIFLAZZ_API_KEY ?? "",
         DIGIFLAZZ_BASE_URL: process.env.DIGIFLAZZ_BASE_URL ?? "https://api.digiflazz.com/v1",
+        DIGIFLAZZ_WEBHOOK_SECRET: process.env.DIGIFLAZZ_WEBHOOK_SECRET ?? "",
         VIP_API_ID: process.env.VIP_API_ID ?? "",
         VIP_API_KEY: process.env.VIP_API_KEY ?? "",
         VIP_SIGN: process.env.VIP_SIGN ?? "",

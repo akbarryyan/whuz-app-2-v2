@@ -1,6 +1,7 @@
 import { createHmac } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
+import { getSiteConfigValue } from "@/lib/site-config";
 import { checkAndUpgradeUserTier } from "@/lib/pricing";
 import { OrderStatus, WebhookSource } from "@/src/core/domain/enums/order.enum";
 import { OrderRepository } from "@/src/infra/db/repositories/order.repository";
@@ -31,8 +32,8 @@ function ok(extra?: Record<string, unknown>) {
   return NextResponse.json({ success: true, ...extra }, { status: 200 });
 }
 
-function verifySignature(rawBody: string, signature: string | null) {
-  const secret = process.env.DIGIFLAZZ_WEBHOOK_SECRET?.trim();
+async function verifySignature(rawBody: string, signature: string | null) {
+  const secret = (await getSiteConfigValue("DIGIFLAZZ_WEBHOOK_SECRET")).trim();
   if (!secret) {
     console.warn("[Webhook/Digiflazz] DIGIFLAZZ_WEBHOOK_SECRET belum diset; signature dilewati.");
     return true;
@@ -74,7 +75,7 @@ export async function POST(req: NextRequest) {
   const signature = req.headers.get("x-hub-signature");
   const userAgent = req.headers.get("user-agent") ?? "unknown";
 
-  if (!verifySignature(rawBody, signature)) {
+  if (!(await verifySignature(rawBody, signature))) {
     console.warn("[Webhook/Digiflazz] Invalid X-Hub-Signature");
     return NextResponse.json({ success: false, error: "Invalid signature" }, { status: 401 });
   }

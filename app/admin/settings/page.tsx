@@ -113,7 +113,9 @@ export default function SettingsPage() {
   const [digiflazzUsername, setDigiflazzUsername] = useState("");
   const [digiflazzApiKey, setDigiflazzApiKey] = useState("");
   const [digiflazzBaseUrl, setDigiflazzBaseUrl] = useState("https://api.digiflazz.com/v1");
+  const [digiflazzWebhookSecret, setDigiflazzWebhookSecret] = useState("");
   const [showDigiflazzApiKey, setShowDigiflazzApiKey] = useState(false);
+  const [showDigiflazzWebhookSecret, setShowDigiflazzWebhookSecret] = useState(false);
   const [vipApiId, setVipApiId] = useState("");
   const [vipApiKey, setVipApiKey] = useState("");
   const [vipSign, setVipSign] = useState("");
@@ -177,6 +179,7 @@ export default function SettingsPage() {
         setDigiflazzUsername(raw.DIGIFLAZZ_USERNAME ?? envDefaults.DIGIFLAZZ_USERNAME ?? "");
         setDigiflazzApiKey(raw.DIGIFLAZZ_API_KEY ?? envDefaults.DIGIFLAZZ_API_KEY ?? "");
         setDigiflazzBaseUrl(raw.DIGIFLAZZ_BASE_URL ?? envDefaults.DIGIFLAZZ_BASE_URL ?? "https://api.digiflazz.com/v1");
+        setDigiflazzWebhookSecret(raw.DIGIFLAZZ_WEBHOOK_SECRET ?? envDefaults.DIGIFLAZZ_WEBHOOK_SECRET ?? "");
         setVipApiId(raw.VIP_API_ID ?? envDefaults.VIP_API_ID ?? "");
         setVipApiKey(raw.VIP_API_KEY ?? envDefaults.VIP_API_KEY ?? "");
         setVipSign(raw.VIP_SIGN ?? envDefaults.VIP_SIGN ?? "");
@@ -337,6 +340,7 @@ export default function SettingsPage() {
         { key: "DIGIFLAZZ_USERNAME", value: digiflazzUsername },
         { key: "DIGIFLAZZ_API_KEY", value: digiflazzApiKey },
         { key: "DIGIFLAZZ_BASE_URL", value: digiflazzBaseUrl },
+        { key: "DIGIFLAZZ_WEBHOOK_SECRET", value: digiflazzWebhookSecret },
         { key: "VIP_API_ID", value: vipApiId },
         { key: "VIP_API_KEY", value: vipApiKey },
         { key: "VIP_SIGN", value: vipSign },
@@ -590,18 +594,41 @@ export default function SettingsPage() {
                       </button>
                     </div>
                   </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Base URL</label>
-                    <input
-                      type="text"
-                      value={digiflazzBaseUrl}
-                      onChange={(e) => setDigiflazzBaseUrl(e.target.value)}
-                      placeholder="https://api.digiflazz.com/v1"
-                      className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl outline-none focus:border-blue-400 font-mono text-xs"
-                    />
-                  </div>
-                </div>
-              </div>
+	                  <div>
+	                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Base URL</label>
+	                    <input
+	                      type="text"
+	                      value={digiflazzBaseUrl}
+	                      onChange={(e) => setDigiflazzBaseUrl(e.target.value)}
+	                      placeholder="https://api.digiflazz.com/v1"
+	                      className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl outline-none focus:border-blue-400 font-mono text-xs"
+	                    />
+	                  </div>
+	                  <div>
+	                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Webhook Secret</label>
+	                    <div className="relative">
+	                      <input
+	                        type={showDigiflazzWebhookSecret ? "text" : "password"}
+	                        value={digiflazzWebhookSecret}
+	                        onChange={(e) => setDigiflazzWebhookSecret(e.target.value)}
+	                        placeholder="secret webhook Digiflazz"
+	                        className="w-full px-3 py-2.5 pr-14 text-sm border border-slate-200 rounded-xl outline-none focus:border-blue-400 font-mono text-xs"
+	                      />
+	                      <button
+	                        type="button"
+	                        onClick={() => setShowDigiflazzWebhookSecret((v) => !v)}
+	                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-medium text-slate-400 hover:text-slate-600 transition"
+	                        tabIndex={-1}
+	                      >
+	                        {showDigiflazzWebhookSecret ? "Hide" : "Show"}
+	                      </button>
+	                    </div>
+	                    <p className="text-[10px] text-slate-400 mt-1">
+	                      Isi sama dengan secret webhook di dashboard Digiflazz. Kosongkan untuk fallback ke .env atau melewati validasi signature.
+	                    </p>
+	                  </div>
+	                </div>
+	              </div>
 
               <div className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
                 <h3 className="text-sm font-bold text-slate-800">VIP Reseller</h3>
