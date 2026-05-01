@@ -48,9 +48,19 @@ export default function ProductsPage() {
   const [categories, setCategories] = useState<string[]>([]);
   const [brands, setBrands] = useState<string[]>([]);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [editForm, setEditForm] = useState({
+    providerCode: "",
+    name: "",
+    category: "",
+    brand: "",
+    type: "manual",
+    providerPrice: 0,
     margin: 0,
+    sellingPrice: 0,
+    stock: true,
+    description: "",
     isActive: true,
   });
 
@@ -159,10 +169,59 @@ export default function ProductsPage() {
   const openEditModal = (product: Product) => {
     setEditingProduct(product);
     setEditForm({
+      providerCode: product.providerCode,
+      name: product.name,
+      category: product.category,
+      brand: product.brand,
+      type: product.type || "manual",
+      providerPrice: product.providerPrice,
       margin: product.margin,
+      sellingPrice: product.sellingPrice,
+      stock: product.stock,
+      description: product.description ?? "",
       isActive: product.isActive,
     });
     setShowEditModal(true);
+  };
+
+  const openCreateModal = () => {
+    setEditForm({
+      providerCode: `MANUAL-${Date.now()}`,
+      name: "",
+      category: "Top Up Game",
+      brand: "",
+      type: "manual",
+      providerPrice: 0,
+      margin: 0,
+      sellingPrice: 0,
+      stock: true,
+      description: "",
+      isActive: true,
+    });
+    setShowCreateModal(true);
+  };
+
+  const saveManualProduct = async () => {
+    try {
+      const response = await fetch("/api/admin/products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editForm),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Gagal membuat produk manual");
+      }
+
+      setProducts((prev) => [data.data, ...prev]);
+      setCategories((prev) => Array.from(new Set([...prev, data.data.category])).sort());
+      setBrands((prev) => Array.from(new Set([...prev, data.data.brand])).sort());
+      toast.success("Produk manual berhasil dibuat");
+      setShowCreateModal(false);
+    } catch (error) {
+      console.error("Create product error:", error);
+      toast.error(error instanceof Error ? error.message : "Gagal membuat produk manual");
+    }
   };
 
   const saveProductChanges = async () => {
@@ -172,11 +231,12 @@ export default function ProductsPage() {
       const response = await fetch("/api/admin/products", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: editingProduct.id,
-          margin: editForm.margin,
-          isActive: editForm.isActive,
-        }),
+          body: JSON.stringify({
+            id: editingProduct.id,
+            ...(editingProduct.provider === "MANUAL" ? editForm : {}),
+            margin: editForm.margin,
+            isActive: editForm.isActive,
+          }),
       });
 
       if (response.ok) {
@@ -195,6 +255,31 @@ export default function ProductsPage() {
     } catch (error) {
       console.error("Save product error:", error);
       toast.error("Gagal update produk");
+    }
+  };
+
+  const deleteManualProduct = async (product: Product) => {
+    if (!confirm(`Hapus produk manual "${product.name}"? Produk yang sudah punya transaksi akan dinonaktifkan.`)) return;
+    try {
+      const response = await fetch("/api/admin/products", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: product.id }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Gagal menghapus produk");
+      }
+
+      if (data.softDeleted) {
+        setProducts((prev) => prev.map((p) => p.id === product.id ? { ...p, isActive: false, stock: false } : p));
+        toast.success("Produk punya riwayat transaksi, jadi dinonaktifkan.");
+      } else {
+        setProducts((prev) => prev.filter((p) => p.id !== product.id));
+        toast.success("Produk manual dihapus.");
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Gagal menghapus produk");
     }
   };
 
@@ -262,11 +347,18 @@ export default function ProductsPage() {
                 Kelola produk dan harga jual PPOB Anda
               </p>
             </div>
-            <button
-              onClick={loadProducts}
-              disabled={loading}
-              className="flex items-center gap-2 rounded-full bg-[#2563eb] px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-600 disabled:opacity-50"
-            >
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={openCreateModal}
+                className="rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700"
+              >
+                Tambah Produk Manual
+              </button>
+              <button
+                onClick={loadProducts}
+                disabled={loading}
+                className="flex items-center gap-2 rounded-full bg-[#2563eb] px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-600 disabled:opacity-50"
+              >
               <svg
                 className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
                 fill="none"
@@ -281,7 +373,8 @@ export default function ProductsPage() {
                 />
               </svg>
               <span>{loading ? "Loading..." : "Refresh"}</span>
-            </button>
+              </button>
+            </div>
           </div>
 
           {/* Stats Cards */}
@@ -375,8 +468,9 @@ export default function ProductsPage() {
                   className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                 >
                   <option value="">Semua Provider</option>
-                  <option value="DIGIFLAZZ">DIGIFLAZZ</option>
-                  <option value="VIP_RESELLER">VIP RESELLER</option>
+	                  <option value="DIGIFLAZZ">DIGIFLAZZ</option>
+	                  <option value="VIP_RESELLER">VIP RESELLER</option>
+	                  <option value="MANUAL">MANUAL</option>
                 </select>
               </div>
 
@@ -512,8 +606,8 @@ export default function ProductsPage() {
                         >
                           Edit
                         </button>
-                        <button
-                          onClick={() => toggleProductStatus(product)}
+	                              <button
+	                                onClick={() => toggleProductStatus(product)}
                           className={`flex-1 rounded-full py-1.5 text-xs font-semibold transition ${
                             product.isActive
                               ? "bg-slate-100 text-slate-600 hover:bg-slate-200"
@@ -622,10 +716,18 @@ export default function ProductsPage() {
                                     : "bg-emerald-100 text-emerald-600 hover:bg-emerald-200"
                                 }`}
                               >
-                                {product.isActive ? "Nonaktif" : "Aktifkan"}
-                              </button>
-                            </div>
-                          </td>
+	                                {product.isActive ? "Nonaktif" : "Aktifkan"}
+	                              </button>
+                              {product.provider === "MANUAL" && (
+                                <button
+                                  onClick={() => deleteManualProduct(product)}
+                                  className="rounded-lg bg-rose-100 px-2 py-1 text-xs font-semibold text-rose-600 transition hover:bg-rose-200"
+                                >
+                                  Hapus
+                                </button>
+                              )}
+	                            </div>
+	                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -702,7 +804,7 @@ export default function ProductsPage() {
           </div>
 
           {/* Edit Product Modal */}
-          {showEditModal && editingProduct && (
+	          {showEditModal && editingProduct && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-md px-4">
               <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-xl">
                 <div className="flex items-center justify-between">
@@ -725,10 +827,47 @@ export default function ProductsPage() {
                   </p>
                 </div>
 
-                <div className="mt-6 space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700">
-                      Margin Keuntungan (Rupiah)
+	                <div className="mt-6 space-y-4">
+                  {editingProduct.provider === "MANUAL" && (
+                    <div className="grid grid-cols-1 gap-3">
+                      <input
+                        value={editForm.name}
+                        onChange={(e) => setEditForm((prev) => ({ ...prev, name: e.target.value }))}
+                        placeholder="Nama produk"
+                        className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                      />
+                      <div className="grid grid-cols-2 gap-3">
+                        <input
+                          value={editForm.category}
+                          onChange={(e) => setEditForm((prev) => ({ ...prev, category: e.target.value }))}
+                          placeholder="Kategori"
+                          className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                        />
+                        <input
+                          value={editForm.brand}
+                          onChange={(e) => setEditForm((prev) => ({ ...prev, brand: e.target.value }))}
+                          placeholder="Brand"
+                          className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                        />
+                      </div>
+                      <input
+                        value={editForm.providerCode}
+                        onChange={(e) => setEditForm((prev) => ({ ...prev, providerCode: e.target.value }))}
+                        placeholder="Kode produk manual"
+                        className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                      />
+                      <input
+                        type="number"
+                        value={editForm.providerPrice}
+                        onChange={(e) => setEditForm((prev) => ({ ...prev, providerPrice: parseFloat(e.target.value) || 0 }))}
+                        placeholder="Harga dasar"
+                        className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                      />
+                    </div>
+                  )}
+	                  <div>
+	                    <label className="block text-sm font-medium text-slate-700">
+	                      Margin Keuntungan (Rupiah)
                     </label>
                     <input
                       type="number"
@@ -768,16 +907,20 @@ export default function ProductsPage() {
                     </button>
                   </div>
 
-                  <div className="rounded-xl bg-blue-50 p-4">
-                    <p className="text-xs font-medium text-blue-600">Ringkasan Harga:</p>
-                    <div className="mt-2 space-y-1 text-sm text-blue-700">
-                      <p>Harga Provider: {formatCurrency(editingProduct.providerPrice)}</p>
-                      <p>Margin: +{formatCurrency(editForm.margin)}</p>
-                      <p className="font-semibold">
-                        Harga Jual: {formatCurrency(editingProduct.providerPrice + editForm.margin)}
-                      </p>
-                    </div>
-                  </div>
+	                  <div className="rounded-xl bg-blue-50 p-4">
+	                    <p className="text-xs font-medium text-blue-600">Ringkasan Harga:</p>
+	                    <div className="mt-2 space-y-1 text-sm text-blue-700">
+	                      <p>Harga Provider: {formatCurrency(editingProduct.providerPrice)}</p>
+	                      <p>Margin: +{formatCurrency(editForm.margin)}</p>
+	                      <p className="font-semibold">
+	                        Harga Jual: {formatCurrency(
+                            editingProduct.provider === "MANUAL"
+                              ? editForm.providerPrice + editForm.margin
+                              : editingProduct.providerPrice + editForm.margin
+                          )}
+	                      </p>
+	                    </div>
+	                  </div>
                 </div>
 
                 <div className="mt-6 flex gap-3">
@@ -795,10 +938,96 @@ export default function ProductsPage() {
                   </button>
                 </div>
               </div>
+	            </div>
+	          )}
+          {showCreateModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-md px-4">
+              <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-xl">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-bold text-slate-800">Tambah Produk Manual</h3>
+                  <button
+                    onClick={() => setShowCreateModal(false)}
+                    className="rounded-full p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                  >
+                    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+
+                <div className="mt-5 grid gap-3">
+                  <input
+                    value={editForm.name}
+                    onChange={(e) => setEditForm((prev) => ({ ...prev, name: e.target.value }))}
+                    placeholder="Nama produk"
+                    className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  />
+                  <div className="grid grid-cols-2 gap-3">
+                    <input
+                      value={editForm.category}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, category: e.target.value }))}
+                      placeholder="Kategori"
+                      className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    />
+                    <input
+                      value={editForm.brand}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, brand: e.target.value }))}
+                      placeholder="Brand"
+                      className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    />
+                  </div>
+                  <input
+                    value={editForm.providerCode}
+                    onChange={(e) => setEditForm((prev) => ({ ...prev, providerCode: e.target.value }))}
+                    placeholder="Kode unik produk"
+                    className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  />
+                  <div className="grid grid-cols-2 gap-3">
+                    <input
+                      type="number"
+                      value={editForm.providerPrice}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, providerPrice: parseFloat(e.target.value) || 0 }))}
+                      placeholder="Harga dasar"
+                      className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    />
+                    <input
+                      type="number"
+                      value={editForm.margin}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, margin: parseFloat(e.target.value) || 0 }))}
+                      placeholder="Margin"
+                      className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    />
+                  </div>
+                  <textarea
+                    value={editForm.description}
+                    onChange={(e) => setEditForm((prev) => ({ ...prev, description: e.target.value }))}
+                    placeholder="Deskripsi / instruksi proses manual"
+                    className="min-h-20 w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  />
+                  <div className="rounded-xl bg-blue-50 p-4 text-sm text-blue-700">
+                    Harga jual: <strong>{formatCurrency(editForm.providerPrice + editForm.margin)}</strong>
+                  </div>
+                </div>
+
+                <div className="mt-6 flex gap-3">
+                  <button
+                    onClick={() => setShowCreateModal(false)}
+                    className="flex-1 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    onClick={saveManualProduct}
+                    className="flex-1 rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                  >
+                    Simpan
+                  </button>
+                </div>
+              </div>
             </div>
           )}
-        </div>
-      </div>
-    </div>
+	        </div>
+	      </div>
+	    </div>
   );
 }

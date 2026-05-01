@@ -105,6 +105,9 @@ export default function TransactionsPage() {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<TransactionDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  const [manualSerialNumber, setManualSerialNumber] = useState("");
+  const [manualNotes, setManualNotes] = useState("");
+  const [manualSaving, setManualSaving] = useState(false);
 
   const itemsPerPage = 20;
   const toast = useToast();
@@ -148,6 +151,8 @@ export default function TransactionsPage() {
       if (response.ok) {
         const data = await response.json();
         setSelectedTransaction(data.data);
+        setManualSerialNumber(data.data?.serialNumber ?? "");
+        setManualNotes(data.data?.notes ?? "");
         setShowDetailModal(true);
       }
     } catch (error) {
@@ -227,6 +232,33 @@ export default function TransactionsPage() {
       currency: "IDR",
       minimumFractionDigits: 0,
     }).format(amount);
+  };
+
+  const updateManualTransaction = async (status: "SUCCESS" | "FAILED") => {
+    if (!selectedTransaction) return;
+    setManualSaving(true);
+    try {
+      const response = await fetch(`/api/admin/transactions/${selectedTransaction.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status,
+          serialNumber: manualSerialNumber,
+          notes: manualNotes,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Gagal update transaksi manual");
+      }
+      toast.success(status === "SUCCESS" ? "Transaksi manual diset sukses." : "Transaksi manual diset gagal.");
+      await loadTransactions();
+      await loadTransactionDetail(selectedTransaction.id);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Gagal update transaksi manual");
+    } finally {
+      setManualSaving(false);
+    }
   };
 
   const getStatusBadgeColor = (status: string) => {
@@ -802,7 +834,7 @@ export default function TransactionsPage() {
                       </div>
                     </div>
 
-                    {/* Serial Number */}
+	                    {/* Serial Number */}
                     {selectedTransaction.serialNumber && (
                       <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
                         <p className="text-sm font-semibold text-emerald-800">Serial Number</p>
@@ -810,9 +842,46 @@ export default function TransactionsPage() {
                           {selectedTransaction.serialNumber}
                         </p>
                       </div>
-                    )}
+	                    )}
 
-                    {/* Provider Logs */}
+                    {selectedTransaction.product.provider === "MANUAL" &&
+                      ["PAID", "PROCESSING_PROVIDER"].includes(selectedTransaction.status) && (
+                        <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+                          <p className="text-sm font-semibold text-blue-900">Proses Manual</p>
+                          <div className="mt-3 grid gap-3">
+                            <input
+                              value={manualSerialNumber}
+                              onChange={(e) => setManualSerialNumber(e.target.value)}
+                              placeholder="Serial number / keterangan sukses"
+                              className="w-full rounded-xl border border-blue-100 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                            />
+                            <textarea
+                              value={manualNotes}
+                              onChange={(e) => setManualNotes(e.target.value)}
+                              placeholder="Catatan admin"
+                              className="min-h-20 w-full rounded-xl border border-blue-100 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                            />
+                            <div className="flex flex-col gap-2 sm:flex-row">
+                              <button
+                                onClick={() => updateManualTransaction("SUCCESS")}
+                                disabled={manualSaving}
+                                className="flex-1 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50"
+                              >
+                                Set Sukses
+                              </button>
+                              <button
+                                onClick={() => updateManualTransaction("FAILED")}
+                                disabled={manualSaving}
+                                className="flex-1 rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-rose-700 disabled:opacity-50"
+                              >
+                                Set Gagal
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+	                    {/* Provider Logs */}
                     {selectedTransaction.providerLogs.length > 0 && (
                       <div className="rounded-xl border border-slate-200 p-4">
                         <p className="text-sm font-semibold text-slate-800">Provider Logs</p>

@@ -36,10 +36,52 @@ export async function GET() {
       updatedAt: metaMap[b.brand]?.updatedAt ?? null,
     }));
 
+    for (const meta of metas) {
+      if (data.some((item) => item.brand === meta.brand)) continue;
+      data.push({
+        brand: meta.brand,
+        category: "Manual",
+        slug: meta.brand
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/(^-|-$)/g, ""),
+        imageUrl: meta.imageUrl ?? null,
+        inputFields: meta.inputFields ?? null,
+        updatedAt: meta.updatedAt,
+      });
+    }
+
     return NextResponse.json({ success: true, data });
   } catch (error) {
     console.error("[ADMIN BRANDS GET ERROR]", error);
     return NextResponse.json({ success: false, error: "Gagal memuat brand." }, { status: 500 });
+  }
+}
+
+/**
+ * POST /api/admin/brands
+ * Create a manual brand metadata row.
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const brand = String(body.brand ?? "").trim();
+    const imageUrl = String(body.imageUrl ?? "").trim();
+
+    if (!brand) {
+      return NextResponse.json({ success: false, error: "brand diperlukan." }, { status: 400 });
+    }
+
+    const meta = await prisma.brandMeta.upsert({
+      where: { brand },
+      create: { brand, imageUrl: imageUrl || null },
+      update: { imageUrl: imageUrl || undefined },
+    });
+
+    return NextResponse.json({ success: true, data: meta }, { status: 201 });
+  } catch (error) {
+    console.error("[ADMIN BRANDS POST ERROR]", error);
+    return NextResponse.json({ success: false, error: "Gagal membuat brand." }, { status: 500 });
   }
 }
 

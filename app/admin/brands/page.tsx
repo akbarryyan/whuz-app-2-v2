@@ -40,6 +40,8 @@ export default function AdminBrandsPage() {
   const [editUrl, setEditUrl] = useState("");
   const [saving, setSaving] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [newBrand, setNewBrand] = useState("");
+  const [newBrandImage, setNewBrandImage] = useState("");
   const toast = useToast();
 
   const [configBrand, setConfigBrand] = useState<BrandRow | null>(null);
@@ -106,6 +108,45 @@ export default function AdminBrandsPage() {
         if (editingBrand === brandName) cancelEdit();
       } else toast.error(data.error ?? "Gagal menghapus.");
     } catch { toast.error("Gagal menghapus."); } finally { setSaving(false); }
+  };
+
+  const createBrand = async () => {
+    if (!newBrand.trim()) {
+      toast.error("Nama brand wajib diisi.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch("/api/admin/brands", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ brand: newBrand.trim(), imageUrl: newBrandImage.trim() }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        const brandName = newBrand.trim();
+        setBrands((prev) => [
+          {
+            brand: brandName,
+            category: "Manual",
+            slug: brandName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""),
+            imageUrl: newBrandImage.trim() || null,
+            inputFields: null,
+            updatedAt: new Date().toISOString(),
+          },
+          ...prev.filter((item) => item.brand !== brandName),
+        ]);
+        setNewBrand("");
+        setNewBrandImage("");
+        toast.success("Brand manual berhasil dibuat.");
+      } else {
+        toast.error(data.error ?? "Gagal membuat brand.");
+      }
+    } catch {
+      toast.error("Gagal membuat brand.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const openConfig = (brand: BrandRow) => {
@@ -177,7 +218,7 @@ export default function AdminBrandsPage() {
             </div>
           </div>
 
-          <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-start gap-2.5">
+	          <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-start gap-2.5">
             <svg className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
             </svg>
@@ -185,6 +226,31 @@ export default function AdminBrandsPage() {
               Atur <strong>gambar</strong> dan <strong>konfigurasi input checkout</strong> per brand. Semua konfigurasi brand disimpan di
               <code className="bg-blue-100 px-1 rounded text-xs"> brand_meta </code>.
             </p>
+	          </div>
+
+          <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
+            <p className="text-sm font-bold text-slate-800">Tambah Brand Manual</p>
+            <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
+              <input
+                value={newBrand}
+                onChange={(e) => setNewBrand(e.target.value)}
+                placeholder="Nama brand"
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-200"
+              />
+              <input
+                value={newBrandImage}
+                onChange={(e) => setNewBrandImage(e.target.value)}
+                placeholder="URL gambar brand"
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-200"
+              />
+              <button
+                onClick={createBrand}
+                disabled={saving}
+                className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50"
+              >
+                Tambah
+              </button>
+            </div>
           </div>
 
           <div className="relative">

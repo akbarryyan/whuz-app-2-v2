@@ -1,6 +1,7 @@
 export enum ProviderType {
   DIGIFLAZZ = "DIGIFLAZZ",
   VIP_RESELLER = "VIP_RESELLER",
+  MANUAL = "MANUAL",
 }
 
 export enum ProviderMode {

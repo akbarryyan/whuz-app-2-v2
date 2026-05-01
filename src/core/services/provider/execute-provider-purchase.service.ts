@@ -80,6 +80,24 @@ export class ExecuteProviderPurchaseService {
 
     // ── Resolve provider ──────────────────────────────────────────────────
     const providerType = (order.provider ?? "DIGIFLAZZ") as ProviderType;
+    if (providerType === ProviderType.MANUAL) {
+      await this.orderRepo.logProviderAction({
+        orderId,
+        provider: providerType,
+        action: "manual:queued",
+        request: providerLogJson({
+          productCode: order.product.providerCode,
+          target: order.targetNumber,
+          targetData: order.targetData,
+        }),
+        success: true,
+      });
+      await this.orderRepo.updateStatus(orderId, OrderStatus.PROCESSING_PROVIDER, {
+        notes: "Produk manual menunggu proses admin.",
+      });
+      return;
+    }
+
     await initProviderModesFromDB();
     const provider = ProviderFactory.create(providerType);
 

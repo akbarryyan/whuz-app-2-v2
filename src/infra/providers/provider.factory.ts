@@ -103,7 +103,9 @@ export class ProviderFactory {
     const envKey =
       providerType === ProviderType.DIGIFLAZZ
         ? "PROVIDER_DIGIFLAZZ_MODE"
-        : "PROVIDER_VIP_MODE";
+        : providerType === ProviderType.VIP_RESELLER
+          ? "PROVIDER_VIP_MODE"
+          : "";
     const envMode = process.env[envKey];
     if (envMode?.toLowerCase() === ProviderMode.REAL) return ProviderMode.REAL;
 
@@ -121,4 +123,3 @@ export class ProviderFactory {
     };
   }
 }
-
