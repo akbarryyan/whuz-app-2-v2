@@ -15,9 +15,11 @@ interface MidtransCreateResponse {
   transaction_id?: string;
   transaction_status?: string;
   payment_type?: string;
+  status_message?: string;
   token?: string;
   redirect_url?: string;
   qr_string?: string;
+  qr_code_url?: string;
   actions?: Array<{
     name?: string;
     method?: string;
@@ -34,6 +36,7 @@ interface MidtransStatusResponse {
   gross_amount?: string;
   payment_type?: string;
   status_code?: string;
+  status_message?: string;
   settlement_time?: string;
   transaction_time?: string;
   expiry_time?: string;
@@ -108,12 +111,13 @@ export class MidtransAdapter implements IPaymentGatewayPort {
       }
     );
 
-    const raw = (await response.json().catch(() => ({}))) as MidtransCreateResponse;
+    const rawText = await response.text();
+    const raw = parseMidtransResponse<MidtransCreateResponse>(rawText);
     const qrisImageUrl = findMidtransActionUrl(raw.actions, "generate-qr-code");
-    const paymentUrl = isQris ? qrisImageUrl ?? raw.redirect_url ?? "" : raw.redirect_url ?? "";
+    const paymentUrl = isQris ? qrisImageUrl ?? raw.qr_code_url ?? raw.redirect_url ?? "" : raw.redirect_url ?? "";
 
     if (!response.ok || (!paymentUrl && !raw.qr_string)) {
-      throw new Error(raw.error_messages?.join(", ") || `Midtrans create payment failed (${response.status})`);
+      throw new Error(formatMidtransError(raw, rawText, `Midtrans create payment failed (${response.status})`));
     }
 
     return {
@@ -184,9 +188,10 @@ export class MidtransAdapter implements IPaymentGatewayPort {
       },
     });
 
-    const raw = (await response.json().catch(() => ({}))) as MidtransStatusResponse;
+    const rawText = await response.text();
+    const raw = parseMidtransResponse<MidtransStatusResponse>(rawText);
     if (!response.ok) {
-      throw new Error(raw.error_messages?.join(", ") || `Midtrans status check failed (${response.status})`);
+      throw new Error(formatMidtransError(raw, rawText, `Midtrans status check failed (${response.status})`));
     }
     return raw;
   }
@@ -216,7 +221,7 @@ export class MidtransAdapter implements IPaymentGatewayPort {
 
   private async getSnapBaseUrl(): Promise<string> {
     const configured = await getSiteConfigValue("MIDTRANS_SNAP_BASE_URL");
-    if (configured.trim()) return configured.replace(/\/+$/, "");
+    if (configured.trim()) return normalizeMidtransBaseUrl(configured, "snap");
     return (await this.getMode()) === "production"
       ? "https://app.midtrans.com"
       : "https://app.sandbox.midtrans.com";
@@ -224,7 +229,7 @@ export class MidtransAdapter implements IPaymentGatewayPort {
 
   private async getApiBaseUrl(): Promise<string> {
     const configured = await getSiteConfigValue("MIDTRANS_API_BASE_URL");
-    if (configured.trim()) return configured.replace(/\/+$/, "");
+    if (configured.trim()) return normalizeMidtransBaseUrl(configured, "api");
     return (await this.getMode()) === "production"
       ? "https://api.midtrans.com"
       : "https://api.sandbox.midtrans.com";
@@ -287,6 +292,51 @@ function findMidtransActionUrl(
     actions.find((action) => action.name === preferredName)?.url ??
     actions.find((action) => action.url)?.url
   );
+}
+
+function parseMidtransResponse<T>(rawText: string): T {
+  if (!rawText.trim()) return {} as T;
+
+  try {
+    return JSON.parse(rawText) as T;
+  } catch {
+    return {} as T;
+  }
+}
+
+function formatMidtransError(
+  raw: Pick<MidtransCreateResponse, "error_messages" | "status_message">,
+  rawText: string,
+  fallback: string
+): string {
+  const message = raw.error_messages?.join(", ") || raw.status_message;
+  if (message) return message;
+
+  const snippet = rawText.replace(/\s+/g, " ").trim().slice(0, 180);
+  return snippet ? `${fallback}: ${snippet}` : fallback;
+}
+
+function normalizeMidtransBaseUrl(rawUrl: string, target: "api" | "snap"): string {
+  const trimmed = rawUrl.trim().replace(/\/+$/, "");
+
+  try {
+    const url = new URL(trimmed);
+    const hostname = url.hostname.toLowerCase();
+
+    if (target === "api") {
+      if (hostname === "app.midtrans.com") return "https://api.midtrans.com";
+      if (hostname === "app.sandbox.midtrans.com") return "https://api.sandbox.midtrans.com";
+      if (hostname === "api.midtrans.com" || hostname === "api.sandbox.midtrans.com") return url.origin;
+    }
+
+    if (hostname === "api.midtrans.com") return "https://app.midtrans.com";
+    if (hostname === "api.sandbox.midtrans.com") return "https://app.sandbox.midtrans.com";
+    if (hostname === "app.midtrans.com" || hostname === "app.sandbox.midtrans.com") return url.origin;
+
+    return url.origin;
+  } catch {
+    return trimmed;
+  }
 }
 
 export function mapMidtransStatus(raw: Pick<MidtransStatusResponse, "transaction_status" | "fraud_status">): DetailPaymentResult["status"] {
