@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import crypto from "crypto";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/src/infra/db/prisma";
 
@@ -23,6 +24,56 @@ function productToJson(product: Awaited<ReturnType<typeof prisma.product.findFir
     createdAt: product.createdAt.toISOString(),
     updatedAt: product.updatedAt.toISOString(),
   };
+}
+
+function slugify(value: string) {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+}
+
+interface ManualCategoryRow {
+  id: string;
+  name: string;
+  slug: string;
+}
+
+async function findManualCategoryByName(name: string, client: Prisma.TransactionClient | typeof prisma = prisma) {
+  const rows = await client.$queryRaw<ManualCategoryRow[]>`
+    SELECT id, name, slug FROM manual_categories WHERE name = ${name} LIMIT 1
+  `;
+  return rows[0] ?? null;
+}
+
+async function findManualCategoryBySlug(slug: string, client: Prisma.TransactionClient | typeof prisma = prisma) {
+  const rows = await client.$queryRaw<ManualCategoryRow[]>`
+    SELECT id, name, slug FROM manual_categories WHERE slug = ${slug} LIMIT 1
+  `;
+  return rows[0] ?? null;
+}
+
+async function ensureManualCategory(name: string, client: Prisma.TransactionClient | typeof prisma = prisma) {
+  const existing = await findManualCategoryByName(name, client);
+  if (existing) return existing;
+
+  const baseSlug = slugify(name) || `kategori-${Date.now()}`;
+  let slug = baseSlug;
+  let counter = 2;
+
+  while (await findManualCategoryBySlug(slug, client)) {
+    slug = `${baseSlug}-${counter}`;
+    counter += 1;
+  }
+
+  const id = crypto.randomUUID();
+  await client.$executeRaw`
+    INSERT INTO manual_categories (id, name, slug, sortOrder, isActive, createdAt, updatedAt)
+    VALUES (${id}, ${name}, ${slug}, 99, true, NOW(3), NOW(3))
+  `;
+
+  return { id, name, slug };
 }
 
 /**
@@ -88,27 +139,37 @@ export async function POST(request: Request) {
       );
     }
 
-    const product = await prisma.product.create({
-      data: {
-        provider: "MANUAL",
-        providerCode,
-        name,
-        category,
-        brand,
-        type,
-        providerPrice,
-        margin: sellingPrice - providerPrice,
-        sellingPrice,
-        stock: body.stock !== undefined ? Boolean(body.stock) : true,
-        description: String(body.description ?? "").trim() || null,
-        isActive: body.isActive !== undefined ? Boolean(body.isActive) : true,
-      },
-    });
+    const product = await prisma.$transaction(async (tx) => {
+      const manualCategory = await ensureManualCategory(category, tx);
 
-    await prisma.brandMeta.upsert({
-      where: { brand },
-      create: { brand },
-      update: {},
+      const createdProduct = await tx.product.create({
+        data: {
+          provider: "MANUAL",
+          providerCode,
+          name,
+          category,
+          brand,
+          type,
+          providerPrice,
+          margin: sellingPrice - providerPrice,
+          sellingPrice,
+          stock: body.stock !== undefined ? Boolean(body.stock) : true,
+          description: String(body.description ?? "").trim() || null,
+          isActive: body.isActive !== undefined ? Boolean(body.isActive) : true,
+        },
+      });
+
+      await tx.brandMeta.upsert({
+        where: { brand },
+        create: { brand },
+        update: {},
+      });
+
+      await tx.$executeRaw`
+        UPDATE brand_meta SET manualCategoryId = ${manualCategory.id} WHERE brand = ${brand}
+      `;
+
+      return createdProduct;
     });
 
     return NextResponse.json({ success: true, data: productToJson(product) }, { status: 201 });
@@ -185,10 +246,26 @@ export async function PUT(request: Request) {
       updateData.isActive = isActive;
     }
 
-    // Update product
-    const updatedProduct = await prisma.product.update({
-      where: { id },
-      data: updateData,
+    const updatedProduct = await prisma.$transaction(async (tx) => {
+      const product = await tx.product.update({
+        where: { id },
+        data: updateData,
+      });
+
+      if (product.provider === "MANUAL") {
+        const manualCategory = await ensureManualCategory(product.category, tx);
+        await tx.brandMeta.upsert({
+          where: { brand: product.brand },
+          create: { brand: product.brand },
+          update: {},
+        });
+
+        await tx.$executeRaw`
+          UPDATE brand_meta SET manualCategoryId = ${manualCategory.id} WHERE brand = ${product.brand}
+        `;
+      }
+
+      return product;
     });
 
     // Convert Decimal to number

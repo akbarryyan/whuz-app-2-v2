@@ -23,6 +23,16 @@ interface Product {
   lastSyncAt: string;
 }
 
+interface ManualCategory {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  sortOrder: number;
+  isActive: boolean;
+  brandCount: number;
+}
+
 interface FilterState {
   search: string;
   provider: string;
@@ -46,6 +56,9 @@ export default function ProductsPage() {
     stock: "",
   });
   const [categories, setCategories] = useState<string[]>([]);
+  const [manualCategories, setManualCategories] = useState<ManualCategory[]>([]);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [categorySaving, setCategorySaving] = useState(false);
   const [brands, setBrands] = useState<string[]>([]);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -66,6 +79,7 @@ export default function ProductsPage() {
 
   const itemsPerPage = 20;
   const toast = useToast();
+  const activeManualCategories = manualCategories.filter((category) => category.isActive);
 
   useEffect(() => {
     loadProducts();
@@ -75,9 +89,12 @@ export default function ProductsPage() {
   const loadProducts = async () => {
     try {
       setLoading(true);
-      const response = await fetch("/api/admin/products", {
+      const [response, categoriesResponse] = await Promise.all([
+        fetch("/api/admin/products", {
         cache: "no-store",
-      });
+        }),
+        fetch("/api/admin/manual-categories", { cache: "no-store" }),
+      ]);
       if (!response.ok) {
         throw new Error("Gagal memuat daftar produk");
       }
@@ -91,6 +108,13 @@ export default function ProductsPage() {
       const uniqueBrands = Array.from(new Set(items.map((p: Product) => p.brand))).sort();
       setCategories(uniqueCategories as string[]);
       setBrands(uniqueBrands as string[]);
+
+      if (categoriesResponse.ok) {
+        const categoriesData = await categoriesResponse.json();
+        if (categoriesData.success && Array.isArray(categoriesData.data)) {
+          setManualCategories(categoriesData.data);
+        }
+      }
     } catch (error) {
       console.error("Failed to load products:", error);
       toast.error("Gagal memuat data produk");
@@ -185,10 +209,11 @@ export default function ProductsPage() {
   };
 
   const openCreateModal = () => {
+    const defaultCategory = activeManualCategories[0]?.name ?? "Top Up Game";
     setEditForm({
       providerCode: `MANUAL-${Date.now()}`,
       name: "",
-      category: "Top Up Game",
+      category: defaultCategory,
       brand: "",
       type: "manual",
       providerPrice: 0,
@@ -199,6 +224,55 @@ export default function ProductsPage() {
       isActive: true,
     });
     setShowCreateModal(true);
+  };
+
+  const createManualCategory = async () => {
+    const name = newCategoryName.trim();
+    if (!name) {
+      toast.error("Nama kategori wajib diisi.");
+      return;
+    }
+
+    try {
+      setCategorySaving(true);
+      const response = await fetch("/api/admin/manual-categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, sortOrder: manualCategories.length + 1 }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Gagal membuat kategori manual");
+      }
+
+      setManualCategories((prev) => [...prev, data.data].sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name)));
+      setCategories((prev) => Array.from(new Set([...prev, data.data.name])).sort());
+      setNewCategoryName("");
+      toast.success("Kategori manual berhasil dibuat.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Gagal membuat kategori manual");
+    } finally {
+      setCategorySaving(false);
+    }
+  };
+
+  const toggleManualCategory = async (category: ManualCategory) => {
+    try {
+      const response = await fetch("/api/admin/manual-categories", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: category.id, isActive: !category.isActive }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Gagal update kategori");
+      }
+
+      setManualCategories((prev) => prev.map((item) => item.id === category.id ? data.data : item));
+      toast.success(`Kategori ${category.isActive ? "dinonaktifkan" : "diaktifkan"}.`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Gagal update kategori");
+    }
   };
 
   const saveManualProduct = async () => {
@@ -432,10 +506,57 @@ export default function ProductsPage() {
                 </div>
               </div>
             </div>
-          </div>
+	          </div>
 
-          {/* Filters */}
-          <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm sm:rounded-3xl sm:p-6">
+	          <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm sm:rounded-3xl sm:p-6">
+	            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+	              <div>
+	                <h2 className="text-lg font-semibold text-slate-800">Kategori Manual</h2>
+	                <p className="mt-1 text-sm text-slate-500">
+	                  Kelompokkan produk dan brand manual agar pilihan admin tetap konsisten.
+	                </p>
+	              </div>
+	              <div className="flex w-full gap-2 sm:w-auto">
+	                <input
+	                  value={newCategoryName}
+	                  onChange={(e) => setNewCategoryName(e.target.value)}
+	                  onKeyDown={(e) => e.key === "Enter" && createManualCategory()}
+	                  placeholder="Nama kategori baru"
+	                  className="min-w-0 flex-1 rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 sm:w-56"
+	                />
+	                <button
+	                  onClick={createManualCategory}
+	                  disabled={categorySaving}
+	                  className="shrink-0 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50"
+	                >
+	                  Tambah
+	                </button>
+	              </div>
+	            </div>
+
+	            <div className="mt-4 flex flex-wrap gap-2">
+	              {manualCategories.map((category) => (
+	                <button
+	                  key={category.id}
+	                  onClick={() => toggleManualCategory(category)}
+	                  className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+	                    category.isActive
+	                      ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+	                      : "border-slate-200 bg-slate-100 text-slate-500 hover:bg-slate-200"
+	                  }`}
+	                  title={category.isActive ? "Klik untuk nonaktifkan" : "Klik untuk aktifkan"}
+	                >
+	                  {category.name}
+	                </button>
+	              ))}
+	              {manualCategories.length === 0 && (
+	                <p className="text-sm text-slate-400">Belum ada kategori manual.</p>
+	              )}
+	            </div>
+	          </div>
+
+	          {/* Filters */}
+	          <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm sm:rounded-3xl sm:p-6">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-slate-800">Filter Produk</h2>
               {activeFiltersCount > 0 && (
@@ -836,15 +957,21 @@ export default function ProductsPage() {
                         placeholder="Nama produk"
                         className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                       />
-                      <div className="grid grid-cols-2 gap-3">
-                        <input
-                          value={editForm.category}
-                          onChange={(e) => setEditForm((prev) => ({ ...prev, category: e.target.value }))}
-                          placeholder="Kategori"
-                          className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                        />
-                        <input
-                          value={editForm.brand}
+	                      <div className="grid grid-cols-2 gap-3">
+	                        <select
+	                          value={editForm.category}
+	                          onChange={(e) => setEditForm((prev) => ({ ...prev, category: e.target.value }))}
+	                          className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+	                        >
+	                          <option value="">Pilih kategori</option>
+	                          {activeManualCategories.map((category) => (
+	                            <option key={category.id} value={category.name}>
+	                              {category.name}
+	                            </option>
+	                          ))}
+	                        </select>
+	                        <input
+	                          value={editForm.brand}
                           onChange={(e) => setEditForm((prev) => ({ ...prev, brand: e.target.value }))}
                           placeholder="Brand"
                           className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
@@ -962,15 +1089,21 @@ export default function ProductsPage() {
                     placeholder="Nama produk"
                     className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                   />
-                  <div className="grid grid-cols-2 gap-3">
-                    <input
-                      value={editForm.category}
-                      onChange={(e) => setEditForm((prev) => ({ ...prev, category: e.target.value }))}
-                      placeholder="Kategori"
-                      className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                    />
-                    <input
-                      value={editForm.brand}
+	                  <div className="grid grid-cols-2 gap-3">
+	                    <select
+	                      value={editForm.category}
+	                      onChange={(e) => setEditForm((prev) => ({ ...prev, category: e.target.value }))}
+	                      className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+	                    >
+	                      <option value="">Pilih kategori</option>
+	                      {activeManualCategories.map((category) => (
+	                        <option key={category.id} value={category.name}>
+	                          {category.name}
+	                        </option>
+	                      ))}
+	                    </select>
+	                    <input
+	                      value={editForm.brand}
                       onChange={(e) => setEditForm((prev) => ({ ...prev, brand: e.target.value }))}
                       placeholder="Brand"
                       className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"

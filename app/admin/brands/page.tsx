@@ -23,6 +23,13 @@ interface BrandRow {
   updatedAt: string | null;
 }
 
+interface ManualCategory {
+  id: string;
+  name: string;
+  isActive: boolean;
+  sortOrder: number;
+}
+
 const FIELD_TEMPLATES: InputFieldDef[] = [
   { key: "userId",   label: "User ID",   placeholder: "Masukkan User ID",   required: true, width: "flex"  },
   { key: "zoneId",   label: "Zone ID",   placeholder: "Masukkan Zone ID",   required: true, width: "fixed" },
@@ -42,6 +49,10 @@ export default function AdminBrandsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [newBrand, setNewBrand] = useState("");
   const [newBrandImage, setNewBrandImage] = useState("");
+  const [newBrandCategory, setNewBrandCategory] = useState("Top Up Game");
+  const [manualCategories, setManualCategories] = useState<ManualCategory[]>([]);
+  const [editingCategoryBrand, setEditingCategoryBrand] = useState<string | null>(null);
+  const [categoryDraft, setCategoryDraft] = useState("");
   const toast = useToast();
 
   const [configBrand, setConfigBrand] = useState<BrandRow | null>(null);
@@ -50,11 +61,22 @@ export default function AdminBrandsPage() {
 
   const fetchBrands = async () => {
     try {
-      const brandsRes = await fetch("/api/admin/brands");
+      const [brandsRes, categoriesRes] = await Promise.all([
+        fetch("/api/admin/brands"),
+        fetch("/api/admin/manual-categories"),
+      ]);
       const brandsData = await brandsRes.json();
 
       if (brandsData.success) setBrands(brandsData.data);
       else toast.error("Gagal memuat data brand.");
+
+      if (categoriesRes.ok) {
+        const categoriesData = await categoriesRes.json();
+        if (categoriesData.success && Array.isArray(categoriesData.data)) {
+          setManualCategories(categoriesData.data);
+          setNewBrandCategory(categoriesData.data.find((item: ManualCategory) => item.isActive)?.name ?? "Top Up Game");
+        }
+      }
     } catch {
       toast.error("Gagal memuat data brand.");
     } finally {
@@ -96,6 +118,35 @@ export default function AdminBrandsPage() {
     } catch { toast.error("Gagal menyimpan."); } finally { setSaving(false); }
   };
 
+  const startCategoryEdit = (brand: BrandRow) => {
+    setEditingCategoryBrand(brand.brand);
+    setCategoryDraft(brand.category);
+  };
+
+  const saveCategory = async (brandName: string) => {
+    setSaving(true);
+    try {
+      const res = await fetch("/api/admin/brands", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ brand: brandName, category: categoryDraft }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setBrands((prev) => prev.map((brand) => brand.brand === brandName ? { ...brand, category: categoryDraft } : brand));
+        setEditingCategoryBrand(null);
+        setCategoryDraft("");
+        toast.success("Kategori brand berhasil disimpan.");
+      } else {
+        toast.error(data.error ?? "Gagal menyimpan kategori.");
+      }
+    } catch {
+      toast.error("Gagal menyimpan kategori.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const clearImage = async (brandName: string) => {
     if (!confirm(`Hapus gambar untuk "${brandName}"?`)) return;
     setSaving(true);
@@ -120,7 +171,7 @@ export default function AdminBrandsPage() {
       const res = await fetch("/api/admin/brands", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ brand: newBrand.trim(), imageUrl: newBrandImage.trim() }),
+        body: JSON.stringify({ brand: newBrand.trim(), imageUrl: newBrandImage.trim(), category: newBrandCategory }),
       });
       const data = await res.json();
       if (data.success) {
@@ -128,7 +179,7 @@ export default function AdminBrandsPage() {
         setBrands((prev) => [
           {
             brand: brandName,
-            category: "Manual",
+            category: newBrandCategory,
             slug: brandName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""),
             imageUrl: newBrandImage.trim() || null,
             inputFields: null,
@@ -138,6 +189,7 @@ export default function AdminBrandsPage() {
         ]);
         setNewBrand("");
         setNewBrandImage("");
+        setNewBrandCategory(manualCategories.find((category) => category.isActive)?.name ?? "Top Up Game");
         toast.success("Brand manual berhasil dibuat.");
       } else {
         toast.error(data.error ?? "Gagal membuat brand.");
@@ -226,11 +278,11 @@ export default function AdminBrandsPage() {
               Atur <strong>gambar</strong> dan <strong>konfigurasi input checkout</strong> per brand. Semua konfigurasi brand disimpan di
               <code className="bg-blue-100 px-1 rounded text-xs"> brand_meta </code>.
             </p>
-	          </div>
+          </div>
 
           <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
             <p className="text-sm font-bold text-slate-800">Tambah Brand Manual</p>
-            <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
+            <div className="mt-3 grid gap-3 lg:grid-cols-[1fr_1fr_220px_auto]">
               <input
                 value={newBrand}
                 onChange={(e) => setNewBrand(e.target.value)}
@@ -243,6 +295,17 @@ export default function AdminBrandsPage() {
                 placeholder="URL gambar brand"
                 className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-200"
               />
+              <select
+                value={newBrandCategory}
+                onChange={(e) => setNewBrandCategory(e.target.value)}
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-200"
+              >
+                {manualCategories.filter((category) => category.isActive).map((category) => (
+                  <option key={category.id} value={category.name}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
               <button
                 onClick={createBrand}
                 disabled={saving}
@@ -293,7 +356,36 @@ export default function AdminBrandsPage() {
 
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-bold text-slate-800 truncate">{brand.brand}</p>
-                        <p className="text-xs text-slate-400 truncate">{brand.category}</p>
+                        {editingCategoryBrand === brand.brand ? (
+                          <div className="mt-1 flex gap-1.5">
+                            <select
+                              value={categoryDraft}
+                              onChange={(e) => setCategoryDraft(e.target.value)}
+                              className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                            >
+                              {manualCategories.filter((category) => category.isActive).map((category) => (
+                                <option key={category.id} value={category.name}>
+                                  {category.name}
+                                </option>
+                              ))}
+                            </select>
+                            <button
+                              onClick={() => saveCategory(brand.brand)}
+                              disabled={saving}
+                              className="rounded-lg bg-emerald-600 px-2 py-1 text-[10px] font-semibold text-white disabled:opacity-50"
+                            >
+                              OK
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => startCategoryEdit(brand)}
+                            className="mt-0.5 block max-w-full truncate text-left text-xs text-slate-400 transition hover:text-blue-600"
+                            title="Klik untuk ubah kategori"
+                          >
+                            {brand.category}
+                          </button>
+                        )}
                         <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                           <span className={`inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${brand.imageUrl ? "bg-emerald-50 text-emerald-600" : "bg-slate-100 text-slate-500"}`}>
                             {brand.imageUrl ? "✓ Gambar" : "No gambar"}
