@@ -20,6 +20,15 @@ interface DigitalStockRow {
   orderCode: string | null;
 }
 
+type DigitalStockInput = {
+  label?: string | null;
+  credentialEmail?: string | null;
+  email?: string | null;
+  credentialPassword?: string | null;
+  password?: string | null;
+  notes?: string | null;
+};
+
 function stockToJson(stock: DigitalStockRow) {
   return {
     id: stock.id,
@@ -76,7 +85,10 @@ export async function GET(
     });
   } catch (error) {
     console.error("[ADMIN DIGITAL STOCK GET ERROR]", error);
-    return NextResponse.json({ success: false, error: "Gagal memuat stok digital." }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: "Gagal memuat stok digital." },
+      { status: 500 }
+    );
   }
 }
 
@@ -86,31 +98,59 @@ export async function POST(
 ) {
   try {
     const { id: productId } = await context.params;
-    const body = await request.json();
-    const items = Array.isArray(body.items) ? body.items : [body];
+
+    const body: { items?: DigitalStockInput[] } & DigitalStockInput =
+      await request.json();
+
+    const items: DigitalStockInput[] = Array.isArray(body.items)
+      ? body.items
+      : [body];
+
     const cleanItems = items
       .map((item) => ({
         id: crypto.randomUUID(),
         label: String(item.label ?? "").trim() || null,
-        credentialEmail: String(item.credentialEmail ?? item.email ?? "").trim() || null,
-        credentialPassword: String(item.credentialPassword ?? item.password ?? "").trim() || null,
+        credentialEmail:
+          String(item.credentialEmail ?? item.email ?? "").trim() || null,
+        credentialPassword:
+          String(item.credentialPassword ?? item.password ?? "").trim() || null,
         notes: String(item.notes ?? "").trim() || null,
       }))
-      .filter((item) => item.credentialEmail || item.credentialPassword || item.notes);
+      .filter(
+        (item) =>
+          item.credentialEmail || item.credentialPassword || item.notes
+      );
 
     if (cleanItems.length === 0) {
-      return NextResponse.json({ success: false, error: "Minimal isi email, password, atau catatan stok." }, { status: 400 });
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Minimal isi email, password, atau catatan stok.",
+        },
+        { status: 400 }
+      );
     }
 
     const product = await prisma.product.findUnique({
       where: { id: productId },
       select: { id: true, provider: true, type: true },
     });
+
     if (!product) {
-      return NextResponse.json({ success: false, error: "Produk tidak ditemukan." }, { status: 404 });
+      return NextResponse.json(
+        { success: false, error: "Produk tidak ditemukan." },
+        { status: 404 }
+      );
     }
+
     if (product.provider !== "MANUAL") {
-      return NextResponse.json({ success: false, error: "Stok digital hanya untuk produk manual." }, { status: 400 });
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Stok digital hanya untuk produk manual.",
+        },
+        { status: 400 }
+      );
     }
 
     await prisma.product.update({
@@ -131,10 +171,16 @@ export async function POST(
       )
     );
 
-    return NextResponse.json({ success: true, created: cleanItems.length }, { status: 201 });
+    return NextResponse.json(
+      { success: true, created: cleanItems.length },
+      { status: 201 }
+    );
   } catch (error) {
     console.error("[ADMIN DIGITAL STOCK POST ERROR]", error);
-    return NextResponse.json({ success: false, error: "Gagal menambah stok digital." }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: "Gagal menambah stok digital." },
+      { status: 500 }
+    );
   }
 }
 
@@ -145,14 +191,27 @@ export async function PUT(
   try {
     const { id: productId } = await context.params;
     const body = await request.json();
+
     const id = String(body.id ?? "").trim();
-    const status = String(body.status ?? "AVAILABLE").trim().toUpperCase();
+    const status = String(body.status ?? "AVAILABLE")
+      .trim()
+      .toUpperCase();
 
     if (!id) {
-      return NextResponse.json({ success: false, error: "ID stok wajib diisi." }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: "ID stok wajib diisi." },
+        { status: 400 }
+      );
     }
+
     if (!["AVAILABLE", "DISABLED"].includes(status)) {
-      return NextResponse.json({ success: false, error: "Status hanya bisa AVAILABLE atau DISABLED." }, { status: 400 });
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Status hanya bisa AVAILABLE atau DISABLED.",
+        },
+        { status: 400 }
+      );
     }
 
     await prisma.$executeRaw`
@@ -171,7 +230,10 @@ export async function PUT(
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("[ADMIN DIGITAL STOCK PUT ERROR]", error);
-    return NextResponse.json({ success: false, error: "Gagal update stok digital." }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: "Gagal update stok digital." },
+      { status: 500 }
+    );
   }
 }
 
@@ -182,10 +244,14 @@ export async function DELETE(
   try {
     const { id: productId } = await context.params;
     const body = await request.json();
+
     const id = String(body.id ?? "").trim();
 
     if (!id) {
-      return NextResponse.json({ success: false, error: "ID stok wajib diisi." }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: "ID stok wajib diisi." },
+        { status: 400 }
+      );
     }
 
     await prisma.$executeRaw`
@@ -198,6 +264,9 @@ export async function DELETE(
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("[ADMIN DIGITAL STOCK DELETE ERROR]", error);
-    return NextResponse.json({ success: false, error: "Gagal hapus stok digital." }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: "Gagal hapus stok digital." },
+      { status: 500 }
+    );
   }
 }
