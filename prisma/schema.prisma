@@ -64,6 +64,7 @@ model Product {
 
   orders         Order[]
   sellerProducts SellerProduct[]
+  digitalStocks  DigitalProductStock[]
 
   @@unique([provider, providerCode])
   @@index([category, brand])
@@ -215,6 +216,8 @@ model Order {
   product        Product            @relation(fields: [productId], references: [id])
   paymentInvoice PaymentInvoice?
   providerLogs   OrderProviderLog[]
+  digitalStock    DigitalProductStock?
+  notifications   OrderNotification[]
 
   @@index([orderCode])
   @@index([userId, status])
@@ -335,6 +338,48 @@ model OrderProviderLog {
 
   @@index([orderId, createdAt])
   @@map("order_provider_logs")
+}
+
+model DigitalProductStock {
+  id                 String    @id @default(cuid())
+  productId          String
+  orderId            String?   @unique
+  label              String?   @db.VarChar(120)
+  credentialEmail    String?   @db.VarChar(255)
+  credentialPassword String?   @db.VarChar(255)
+  credentialData     Json?
+  notes              String?   @db.Text
+  status             String    @default("AVAILABLE") @db.VarChar(30) // AVAILABLE, SOLD, DISABLED
+  soldAt             DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  order   Order?  @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([productId, status])
+  @@index([orderId])
+  @@map("digital_product_stocks")
+}
+
+model OrderNotification {
+  id        String   @id @default(cuid())
+  orderId   String
+  channel   String   @db.VarChar(30) // WHATSAPP, EMAIL
+  type      String   @db.VarChar(50) // PURCHASE_SUCCESS
+  status    String   @db.VarChar(30) // SENT, FAILED, SKIPPED
+  target    String?  @db.VarChar(255)
+  message   String?  @db.Text
+  error     String?  @db.Text
+  sentAt    DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@unique([orderId, channel, type])
+  @@index([channel, status])
+  @@map("order_notifications")
 }
 
 // ============================================

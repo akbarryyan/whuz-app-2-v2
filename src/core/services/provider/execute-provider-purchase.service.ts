@@ -2,6 +2,7 @@ import { OrderRepository } from "@/src/infra/db/repositories/order.repository";
 import { ProviderFactory, initProviderModesFromDB } from "@/src/infra/providers/provider.factory";
 import { ProviderType } from "@/src/core/domain/enums/provider.enum";
 import { OrderStatus } from "@/src/core/domain/enums/order.enum";
+import { OrderFulfillmentService, isDigitalStockProduct } from "@/src/core/services/order/order-fulfillment.service";
 import { checkAndUpgradeUserTier } from "@/lib/pricing";
 
 /**
@@ -20,9 +21,13 @@ import { checkAndUpgradeUserTier } from "@/lib/pricing";
  * Admin bisa reconcile manual via API.
  */
 export class ExecuteProviderPurchaseService {
+  private readonly fulfillmentService: OrderFulfillmentService;
+
   constructor(
     private readonly orderRepo: OrderRepository,
-  ) {}
+  ) {
+    this.fulfillmentService = new OrderFulfillmentService(orderRepo);
+  }
 
   private async handleProviderFailure(
     order: NonNullable<Awaited<ReturnType<OrderRepository["findById"]>>>,
@@ -81,6 +86,27 @@ export class ExecuteProviderPurchaseService {
     // ── Resolve provider ──────────────────────────────────────────────────
     const providerType = (order.provider ?? "DIGIFLAZZ") as ProviderType;
     if (providerType === ProviderType.MANUAL) {
+      if (isDigitalStockProduct(order.product.type)) {
+        await this.orderRepo.logProviderAction({
+          orderId,
+          provider: providerType,
+          action: "digital-stock:assign",
+          request: providerLogJson({
+            productCode: order.product.providerCode,
+            target: order.targetNumber,
+            targetData: order.targetData,
+          }),
+          success: true,
+        });
+        await this.fulfillmentService.fulfillSuccessfulOrder(orderId);
+
+        if (order.userId) {
+          await checkAndUpgradeUserTier(order.userId);
+        }
+
+        return;
+      }
+
       await this.orderRepo.logProviderAction({
         orderId,
         provider: providerType,
@@ -151,17 +177,10 @@ export class ExecuteProviderPurchaseService {
 
     // ── Update order based on result ──────────────────────────────────────
     if (result.success) {
-      await this.orderRepo.updateStatus(orderId, OrderStatus.SUCCESS, {
+      await this.fulfillmentService.fulfillSuccessfulOrder(orderId, {
         serialNumber: result.serialNumber,
         providerRef: result.transactionId,
       });
-
-      await this.orderRepo.creditSellerCommission(orderId);
-
-      // Finalize wallet debit ledger (balance was already reduced by HOLD)
-      if (order.paymentMethod === "WALLET" && order.userId) {
-        await this.orderRepo.finalizeDebitLedger(order.userId, Number(order.amount), orderId);
-      }
 
       // Auto-upgrade tier based on accumulated success orders
       if (order.userId) {

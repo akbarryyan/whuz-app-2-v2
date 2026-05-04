@@ -63,8 +63,14 @@ interface OrderDetail {
   fee: number;
   paymentMethod: string;
   notes: string | null;
-  serialNumber: string | null;
-  createdAt: string;
+	  serialNumber: string | null;
+	  digitalCredential: {
+	    label: string | null;
+	    email: string | null;
+	    password: string | null;
+	    notes: string | null;
+	  } | null;
+	  createdAt: string;
   updatedAt: string;
   targetNumber: string;
   targetData: Record<string, unknown> | null;
@@ -539,7 +545,7 @@ function OrderDetailPageContent() {
           </div>
 
           {/* ── Serial Number ─────────────────────────────────────────────── */}
-          {order.serialNumber && (
+	          {order.serialNumber && (
             <div className="rounded-2xl border border-green-200 bg-green-50 p-4 lg:border-green-500/20 lg:bg-green-500/10">
               <p className="text-[11px] font-bold text-green-700 mb-1.5">
                 ✅ Serial Number / Kode Voucher
@@ -551,9 +557,45 @@ function OrderDetailPageContent() {
                 Screenshot atau salin kode ini sebagai bukti pembelian.
               </p>
             </div>
-          )}
+	          )}
 
-          {/* ── Payment Invoice ───────────────────────────────────────────── */}
+	          {order.digitalCredential && (
+	            <div className="rounded-2xl border border-purple-200 bg-purple-50 p-4 lg:border-purple-500/20 lg:bg-purple-500/10">
+	              <p className="mb-3 text-[11px] font-bold text-purple-700 lg:text-purple-100">
+	                Detail Akun Digital
+	              </p>
+	              <div className="space-y-2 text-xs">
+	                {order.digitalCredential.label && (
+	                  <div className="flex justify-between gap-3">
+	                    <span className="text-purple-500 lg:text-purple-100/70">Label</span>
+	                    <span className="text-right font-semibold text-purple-900 lg:text-white">{order.digitalCredential.label}</span>
+	                  </div>
+	                )}
+	                {order.digitalCredential.email && (
+	                  <div className="flex justify-between gap-3">
+	                    <span className="text-purple-500 lg:text-purple-100/70">Email / Username</span>
+	                    <span className="break-all text-right font-mono font-semibold text-purple-900 lg:text-white">{order.digitalCredential.email}</span>
+	                  </div>
+	                )}
+	                {order.digitalCredential.password && (
+	                  <div className="flex justify-between gap-3">
+	                    <span className="text-purple-500 lg:text-purple-100/70">Password</span>
+	                    <span className="break-all text-right font-mono font-semibold text-purple-900 lg:text-white">{order.digitalCredential.password}</span>
+	                  </div>
+	                )}
+	                {order.digitalCredential.notes && (
+	                  <div className="rounded-xl bg-white/70 p-3 text-purple-900 lg:bg-white/10 lg:text-purple-50">
+	                    {order.digitalCredential.notes}
+	                  </div>
+	                )}
+	              </div>
+	              <p className="mt-3 text-[10px] text-purple-600 lg:text-purple-100/70">
+	                Simpan detail ini baik-baik. Data juga dikirim via WhatsApp jika nomor pembeli tersedia.
+	              </p>
+	            </div>
+	          )}
+
+	          {/* ── Payment Invoice ───────────────────────────────────────────── */}
           {order.paymentInvoice && (
             <div className="rounded-2xl border border-slate-100 bg-white shadow-sm lg:border-white/10 lg:bg-white/[0.04] lg:shadow-none">
               <div className="px-4 pt-4 pb-3 border-b border-slate-100">

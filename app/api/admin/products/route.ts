@@ -5,7 +5,10 @@ import { prisma } from "@/src/infra/db/prisma";
 
 export const dynamic = "force-dynamic";
 
-function productToJson(product: Awaited<ReturnType<typeof prisma.product.findFirst>> & {}) {
+function productToJson(
+  product: Awaited<ReturnType<typeof prisma.product.findFirst>> & {},
+  digitalStock?: { available: number; sold: number; disabled: number }
+) {
   return {
     id: product.id,
     provider: product.provider,
@@ -23,6 +26,7 @@ function productToJson(product: Awaited<ReturnType<typeof prisma.product.findFir
     lastSyncAt: product.lastSyncAt.toISOString(),
     createdAt: product.createdAt.toISOString(),
     updatedAt: product.updatedAt.toISOString(),
+    digitalStock: digitalStock ?? { available: 0, sold: 0, disabled: 0 },
   };
 }
 
@@ -90,8 +94,26 @@ export async function GET() {
       ],
     });
 
+    const stockRows = await prisma.$queryRaw<Array<{
+      productId: string;
+      status: string;
+      total: bigint;
+    }>>`
+      SELECT productId, status, COUNT(*) AS total
+      FROM digital_product_stocks
+      GROUP BY productId, status
+    `;
+    const stockMap = new Map<string, { available: number; sold: number; disabled: number }>();
+    for (const row of stockRows) {
+      const current = stockMap.get(row.productId) ?? { available: 0, sold: 0, disabled: 0 };
+      if (row.status === "AVAILABLE") current.available = Number(row.total);
+      if (row.status === "SOLD") current.sold = Number(row.total);
+      if (row.status === "DISABLED") current.disabled = Number(row.total);
+      stockMap.set(row.productId, current);
+    }
+
     // Convert Decimal to number
-    const productsData = products.map(productToJson);
+    const productsData = products.map((product) => productToJson(product, stockMap.get(product.id)));
 
     return NextResponse.json({
       success: true,

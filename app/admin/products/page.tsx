@@ -21,6 +21,22 @@ interface Product {
   description?: string;
   isActive: boolean;
   lastSyncAt: string;
+  digitalStock?: {
+    available: number;
+    sold: number;
+    disabled: number;
+  };
+}
+
+interface DigitalStock {
+  id: string;
+  label: string | null;
+  credentialEmail: string | null;
+  credentialPassword: string | null;
+  notes: string | null;
+  status: string;
+  orderCode: string | null;
+  soldAt: string | null;
 }
 
 interface ManualCategory {
@@ -62,7 +78,19 @@ export default function ProductsPage() {
   const [brands, setBrands] = useState<string[]>([]);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showStockModal, setShowStockModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [stockProduct, setStockProduct] = useState<Product | null>(null);
+  const [digitalStocks, setDigitalStocks] = useState<DigitalStock[]>([]);
+  const [digitalStockLoading, setDigitalStockLoading] = useState(false);
+  const [digitalStockSaving, setDigitalStockSaving] = useState(false);
+  const [stockForm, setStockForm] = useState({
+    label: "",
+    credentialEmail: "",
+    credentialPassword: "",
+    notes: "",
+  });
+  const [bulkStockInput, setBulkStockInput] = useState("");
   const [editForm, setEditForm] = useState({
     providerCode: "",
     name: "",
@@ -295,6 +323,95 @@ export default function ProductsPage() {
     } catch (error) {
       console.error("Create product error:", error);
       toast.error(error instanceof Error ? error.message : "Gagal membuat produk manual");
+    }
+  };
+
+  const openStockModal = async (product: Product) => {
+    setStockProduct(product);
+    setShowStockModal(true);
+    setStockForm({ label: "", credentialEmail: "", credentialPassword: "", notes: "" });
+    setBulkStockInput("");
+    await loadDigitalStocks(product.id);
+  };
+
+  const loadDigitalStocks = async (productId: string) => {
+    try {
+      setDigitalStockLoading(true);
+      const response = await fetch(`/api/admin/products/${productId}/digital-stock`, { cache: "no-store" });
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Gagal memuat stok digital");
+      }
+      setDigitalStocks(data.data);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Gagal memuat stok digital");
+    } finally {
+      setDigitalStockLoading(false);
+    }
+  };
+
+  const saveDigitalStock = async () => {
+    if (!stockProduct) return;
+
+    const bulkItems = bulkStockInput
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => {
+        const [email = "", password = "", notes = ""] = line.split("|").map((item) => item.trim());
+        return { credentialEmail: email, credentialPassword: password, notes };
+      });
+
+    const items = bulkItems.length > 0
+      ? bulkItems
+      : [{
+          label: stockForm.label,
+          credentialEmail: stockForm.credentialEmail,
+          credentialPassword: stockForm.credentialPassword,
+          notes: stockForm.notes,
+        }];
+
+    try {
+      setDigitalStockSaving(true);
+      const response = await fetch(`/api/admin/products/${stockProduct.id}/digital-stock`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Gagal menambah stok digital");
+      }
+
+      toast.success(`${data.created} stok digital ditambahkan.`);
+      setStockForm({ label: "", credentialEmail: "", credentialPassword: "", notes: "" });
+      setBulkStockInput("");
+      await loadDigitalStocks(stockProduct.id);
+      await loadProducts();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Gagal menambah stok digital");
+    } finally {
+      setDigitalStockSaving(false);
+    }
+  };
+
+  const deleteDigitalStock = async (stock: DigitalStock) => {
+    if (!stockProduct || !confirm("Hapus stok digital ini?")) return;
+    try {
+      const response = await fetch(`/api/admin/products/${stockProduct.id}/digital-stock`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: stock.id }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Gagal hapus stok digital");
+      }
+      setDigitalStocks((prev) => prev.filter((item) => item.id !== stock.id));
+      toast.success("Stok digital dihapus.");
+      await loadProducts();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Gagal hapus stok digital");
     }
   };
 
@@ -696,14 +813,19 @@ export default function ProductsPage() {
                         </div>
                       </div>
 
-                      <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
-                        <span className="rounded-full bg-blue-100 px-2 py-0.5 font-medium text-blue-600">
-                          {product.provider.replace("_", " ")}
-                        </span>
-                        <span>{product.category}</span>
-                        <span>·</span>
-                        <span>{product.brand}</span>
-                      </div>
+	                      <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
+	                        <span className="rounded-full bg-blue-100 px-2 py-0.5 font-medium text-blue-600">
+	                          {product.provider.replace("_", " ")}
+	                        </span>
+	                        <span>{product.category}</span>
+	                        <span>·</span>
+	                        <span>{product.brand}</span>
+	                        {product.type === "digital_stock" && (
+	                          <span className="rounded-full bg-purple-100 px-2 py-0.5 font-medium text-purple-600">
+	                            Stok: {product.digitalStock?.available ?? 0}
+	                          </span>
+	                        )}
+	                      </div>
 
                       <div className="mt-3 grid grid-cols-3 gap-2 rounded-xl bg-white p-3 text-xs">
                         <div>
@@ -720,8 +842,8 @@ export default function ProductsPage() {
                         </div>
                       </div>
 
-                      <div className="mt-3 flex gap-2">
-                        <button
+	                      <div className="mt-3 flex gap-2">
+	                        <button
                           onClick={() => openEditModal(product)}
                           className="flex-1 rounded-full bg-blue-100 py-1.5 text-xs font-semibold text-blue-600 transition hover:bg-blue-200"
                         >
@@ -735,9 +857,17 @@ export default function ProductsPage() {
                               : "bg-emerald-100 text-emerald-600 hover:bg-emerald-200"
                           }`}
                         >
-                          {product.isActive ? "Nonaktifkan" : "Aktifkan"}
-                        </button>
-                      </div>
+	                          {product.isActive ? "Nonaktifkan" : "Aktifkan"}
+	                        </button>
+	                        {product.provider === "MANUAL" && (
+	                          <button
+	                            onClick={() => openStockModal(product)}
+	                            className="flex-1 rounded-full bg-purple-100 py-1.5 text-xs font-semibold text-purple-600 transition hover:bg-purple-200"
+	                          >
+	                            Stok
+	                          </button>
+	                        )}
+	                      </div>
                     </div>
                   ))}
                 </div>
@@ -788,7 +918,14 @@ export default function ProductsPage() {
                           <td className="py-3 pr-3 font-medium text-slate-800 max-w-0">
                             <span className="block truncate" title={product.name}>{product.name}</span>
                           </td>
-                          <td className="py-3 pr-3 text-slate-600 truncate max-w-0" title={product.category}>{product.category}</td>
+	                          <td className="py-3 pr-3 text-slate-600 truncate max-w-0" title={product.category}>
+	                            <span className="block truncate">{product.category}</span>
+	                            {product.type === "digital_stock" && (
+	                              <span className="mt-1 inline-flex rounded-full bg-purple-50 px-2 py-0.5 text-[10px] font-semibold text-purple-600">
+	                                Stok {product.digitalStock?.available ?? 0}
+	                              </span>
+	                            )}
+	                          </td>
                           <td className="py-3 pr-3 text-slate-600 truncate max-w-0" title={product.brand}>{product.brand}</td>
                           <td className="py-3 pr-3 text-slate-600 whitespace-nowrap">
                             {formatCurrency(product.providerPrice)}
@@ -839,14 +976,22 @@ export default function ProductsPage() {
                               >
 	                                {product.isActive ? "Nonaktif" : "Aktifkan"}
 	                              </button>
-                              {product.provider === "MANUAL" && (
-                                <button
+	                              {product.provider === "MANUAL" && (
+	                                <button
                                   onClick={() => deleteManualProduct(product)}
                                   className="rounded-lg bg-rose-100 px-2 py-1 text-xs font-semibold text-rose-600 transition hover:bg-rose-200"
                                 >
-                                  Hapus
-                                </button>
-                              )}
+	                                  Hapus
+	                                </button>
+	                              )}
+	                              {product.provider === "MANUAL" && (
+	                                <button
+	                                  onClick={() => openStockModal(product)}
+	                                  className="rounded-lg bg-purple-100 px-2 py-1 text-xs font-semibold text-purple-600 transition hover:bg-purple-200"
+	                                >
+	                                  Stok
+	                                </button>
+	                              )}
 	                            </div>
 	                          </td>
                         </tr>
@@ -977,13 +1122,21 @@ export default function ProductsPage() {
                           className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                         />
                       </div>
-                      <input
-                        value={editForm.providerCode}
+	                      <input
+	                        value={editForm.providerCode}
                         onChange={(e) => setEditForm((prev) => ({ ...prev, providerCode: e.target.value }))}
                         placeholder="Kode produk manual"
-                        className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                      />
-                      <input
+	                        className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+	                      />
+	                      <select
+	                        value={editForm.type}
+	                        onChange={(e) => setEditForm((prev) => ({ ...prev, type: e.target.value }))}
+	                        className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+	                      >
+	                        <option value="manual">Proses manual</option>
+	                        <option value="digital_stock">Produk digital otomatis</option>
+	                      </select>
+	                      <input
                         type="number"
                         value={editForm.providerPrice}
                         onChange={(e) => setEditForm((prev) => ({ ...prev, providerPrice: parseFloat(e.target.value) || 0 }))}
@@ -1109,13 +1262,21 @@ export default function ProductsPage() {
                       className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                     />
                   </div>
-                  <input
-                    value={editForm.providerCode}
+	                  <input
+	                    value={editForm.providerCode}
                     onChange={(e) => setEditForm((prev) => ({ ...prev, providerCode: e.target.value }))}
                     placeholder="Kode unik produk"
-                    className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                  />
-                  <div className="grid grid-cols-2 gap-3">
+	                    className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+	                  />
+	                  <select
+	                    value={editForm.type}
+	                    onChange={(e) => setEditForm((prev) => ({ ...prev, type: e.target.value }))}
+	                    className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+	                  >
+	                    <option value="manual">Proses manual</option>
+	                    <option value="digital_stock">Produk digital otomatis</option>
+	                  </select>
+	                  <div className="grid grid-cols-2 gap-3">
                     <input
                       type="number"
                       value={editForm.providerPrice}
@@ -1156,11 +1317,126 @@ export default function ProductsPage() {
                     Simpan
                   </button>
                 </div>
-              </div>
-            </div>
-          )}
-	        </div>
-	      </div>
-	    </div>
+	              </div>
+	            </div>
+	          )}
+	          {showStockModal && stockProduct && (
+	            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-md px-4">
+	              <div className="flex max-h-[90vh] w-full max-w-3xl flex-col rounded-3xl bg-white p-6 shadow-xl">
+	                <div className="flex items-start justify-between gap-4">
+	                  <div>
+	                    <h3 className="text-xl font-bold text-slate-800">Stok Produk Digital</h3>
+	                    <p className="mt-1 text-sm text-slate-500">{stockProduct.name}</p>
+	                  </div>
+	                  <button
+	                    onClick={() => setShowStockModal(false)}
+	                    className="rounded-full p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+	                  >
+	                    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+	                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+	                    </svg>
+	                  </button>
+	                </div>
+
+	                <div className="mt-5 grid gap-3 rounded-2xl border border-slate-100 bg-slate-50 p-4 lg:grid-cols-2">
+	                  <div className="grid gap-3">
+	                    <input
+	                      value={stockForm.label}
+	                      onChange={(e) => setStockForm((prev) => ({ ...prev, label: e.target.value }))}
+	                      placeholder="Label opsional, contoh: Netflix 1 Bulan"
+	                      className="rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+	                    />
+	                    <div className="grid grid-cols-2 gap-3">
+	                      <input
+	                        value={stockForm.credentialEmail}
+	                        onChange={(e) => setStockForm((prev) => ({ ...prev, credentialEmail: e.target.value }))}
+	                        placeholder="Email / username"
+	                        className="rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+	                      />
+	                      <input
+	                        value={stockForm.credentialPassword}
+	                        onChange={(e) => setStockForm((prev) => ({ ...prev, credentialPassword: e.target.value }))}
+	                        placeholder="Password"
+	                        className="rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+	                      />
+	                    </div>
+	                    <textarea
+	                      value={stockForm.notes}
+	                      onChange={(e) => setStockForm((prev) => ({ ...prev, notes: e.target.value }))}
+	                      placeholder="Catatan akun, PIN, instruksi login"
+	                      className="min-h-20 rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+	                    />
+	                  </div>
+	                  <div className="grid gap-3">
+	                    <textarea
+	                      value={bulkStockInput}
+	                      onChange={(e) => setBulkStockInput(e.target.value)}
+	                      placeholder={"Bulk stok, satu baris satu akun:\nemail|password|catatan"}
+	                      className="min-h-[142px] rounded-xl border border-slate-200 px-4 py-2 font-mono text-xs text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+	                    />
+	                    <button
+	                      onClick={saveDigitalStock}
+	                      disabled={digitalStockSaving}
+	                      className="rounded-xl bg-purple-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-purple-700 disabled:opacity-50"
+	                    >
+	                      {digitalStockSaving ? "Menyimpan..." : "Tambah Stok"}
+	                    </button>
+	                  </div>
+	                </div>
+
+	                <div className="mt-5 flex-1 overflow-y-auto">
+	                  {digitalStockLoading ? (
+	                    <div className="py-10 text-center text-sm text-slate-500">Memuat stok...</div>
+	                  ) : (
+	                    <div className="grid gap-2">
+	                      {digitalStocks.map((stock) => (
+	                        <div key={stock.id} className="rounded-2xl border border-slate-100 bg-white p-3 shadow-sm">
+	                          <div className="flex items-start justify-between gap-3">
+	                            <div className="min-w-0">
+	                              <div className="flex flex-wrap items-center gap-2">
+	                                <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+	                                  stock.status === "AVAILABLE"
+	                                    ? "bg-emerald-100 text-emerald-700"
+	                                    : stock.status === "SOLD"
+	                                    ? "bg-blue-100 text-blue-700"
+	                                    : "bg-slate-100 text-slate-500"
+	                                }`}>
+	                                  {stock.status}
+	                                </span>
+	                                {stock.orderCode && <span className="text-xs text-slate-400">{stock.orderCode}</span>}
+	                              </div>
+	                              <p className="mt-2 truncate text-sm font-semibold text-slate-800">
+	                                {stock.label || stock.credentialEmail || "Stok digital"}
+	                              </p>
+	                              <p className="mt-1 font-mono text-xs text-slate-500 break-all">
+	                                {stock.credentialEmail || "-"} / {stock.credentialPassword || "-"}
+	                              </p>
+	                              {stock.notes && <p className="mt-1 text-xs text-slate-500">{stock.notes}</p>}
+	                            </div>
+	                            {stock.status !== "SOLD" && (
+	                              <button
+	                                onClick={() => deleteDigitalStock(stock)}
+	                                className="shrink-0 rounded-lg bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-100"
+	                              >
+	                                Hapus
+	                              </button>
+	                            )}
+	                          </div>
+	                        </div>
+	                      ))}
+	                      {digitalStocks.length === 0 && (
+	                        <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center text-sm text-slate-500">
+	                          Belum ada stok digital.
+	                        </div>
+	                      )}
+	                    </div>
+	                  )}
+	                </div>
+	              </div>
+	            </div>
+	          )}
+		        </div>
+		      </div>
+		    </div>
   );
 }

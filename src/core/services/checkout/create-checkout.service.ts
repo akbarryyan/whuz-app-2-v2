@@ -107,6 +107,17 @@ export class CreateCheckoutService {
     if (!product) throw new NotFoundError("Product");
     if (!product.isActive) throw new ValidationError("Product is not active");
     if (!product.stock) throw new ValidationError("Product is out of stock");
+    if (product.provider === "MANUAL" && product.type === "digital_stock") {
+      const rows = await prisma.$queryRaw<Array<{ total: bigint }>>`
+        SELECT COUNT(*) AS total
+        FROM digital_product_stocks
+        WHERE productId = ${product.id}
+          AND status = 'AVAILABLE'
+      `;
+      if (Number(rows[0]?.total ?? 0) <= 0) {
+        throw new ValidationError("Stok produk digital habis");
+      }
+    }
 
     // ── 3. Compute pricing snapshot (tier-aware) ──────────────────────────
     const tierPricing = sellerProduct ? null : await getPriceForUser(input.userId, product);

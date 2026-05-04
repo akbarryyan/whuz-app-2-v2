@@ -111,3 +111,43 @@ export async function sendOtpEmail(
     return { success: false, detail: "Gagal mengirim email" };
   }
 }
+
+export async function sendGenericEmail(input: {
+  toEmail: string;
+  subject: string;
+  text: string;
+  html?: string;
+}): Promise<{ success: boolean; detail?: string }> {
+  const config = await getSmtpConfig();
+  const brandName = await getMailBrandName();
+
+  if (!config) {
+    console.error("[MAILER] SMTP belum dikonfigurasi. Set via Admin Dashboard atau .env");
+    return { success: false, detail: "SMTP belum dikonfigurasi" };
+  }
+
+  try {
+    const transporter = nodemailer.createTransport({
+      host: config.host,
+      port: config.port,
+      secure: config.port === 465,
+      auth: {
+        user: config.user,
+        pass: config.pass,
+      },
+    });
+
+    await transporter.sendMail({
+      from: `"${brandName}" <${config.from}>`,
+      to: input.toEmail,
+      subject: input.subject,
+      text: input.text,
+      html: input.html,
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error("[MAILER] Error:", error);
+    return { success: false, detail: "Gagal mengirim email" };
+  }
+}

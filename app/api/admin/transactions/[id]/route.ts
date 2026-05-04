@@ -2,10 +2,12 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/src/infra/db/prisma";
 import { OrderRepository } from "@/src/infra/db/repositories/order.repository";
 import { OrderStatus } from "@/src/core/domain/enums/order.enum";
+import { OrderFulfillmentService } from "@/src/core/services/order/order-fulfillment.service";
 import { checkAndUpgradeUserTier } from "@/lib/pricing";
 
 export const dynamic = "force-dynamic";
 const orderRepo = new OrderRepository();
+const fulfillmentService = new OrderFulfillmentService(orderRepo);
 
 /**
  * GET /api/admin/transactions/[id]
@@ -171,6 +173,7 @@ export async function PATCH(
       if (order.paymentMethod === "WALLET" && order.userId) {
         await orderRepo.finalizeDebitLedger(order.userId, Number(order.amount), order.id);
       }
+      await fulfillmentService.notifySuccess(order.id);
       if (order.userId) {
         await checkAndUpgradeUserTier(order.userId);
       }

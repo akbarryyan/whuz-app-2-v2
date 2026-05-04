@@ -12,6 +12,7 @@ import crypto from "crypto";
 import { OrderRepository } from "@/src/infra/db/repositories/order.repository";
 import { getSession } from "@/lib/session";
 import { syncExpiredOrderByCode } from "@/src/core/services/order/sync-expired-orders.service";
+import { getDigitalCredentialByOrder } from "@/src/core/services/order/order-fulfillment.service";
 
 export const dynamic = "force-dynamic";
 
@@ -59,6 +60,10 @@ export async function GET(
       }
     }
 
+    const digitalCredential = order.status === "SUCCESS"
+      ? await getDigitalCredentialByOrder(order.id)
+      : null;
+
     // ── Shape response (minimal — no internal fields) ──────────────────────
     return NextResponse.json({
       success: true,
@@ -78,8 +83,16 @@ export async function GET(
         markup: Number(order.markup),
         fee: Number(order.fee),
         paymentMethod: order.paymentMethod,
-        serialNumber: order.serialNumber ?? null,
-        paymentInvoice: order.paymentInvoice
+	        serialNumber: order.serialNumber ?? null,
+	        digitalCredential: digitalCredential
+	          ? {
+	              label: digitalCredential.label,
+	              email: digitalCredential.credentialEmail,
+	              password: digitalCredential.credentialPassword,
+	              notes: digitalCredential.notes,
+	            }
+	          : null,
+	        paymentInvoice: order.paymentInvoice
           ? {
               status: order.paymentInvoice.status,
               paymentUrl: order.paymentInvoice.paymentUrl,
