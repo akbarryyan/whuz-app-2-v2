@@ -73,8 +73,6 @@ export default function ProductsPage() {
   });
   const [categories, setCategories] = useState<string[]>([]);
   const [manualCategories, setManualCategories] = useState<ManualCategory[]>([]);
-  const [newCategoryName, setNewCategoryName] = useState("");
-  const [categorySaving, setCategorySaving] = useState(false);
   const [brands, setBrands] = useState<string[]>([]);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -252,55 +250,6 @@ export default function ProductsPage() {
       isActive: true,
     });
     setShowCreateModal(true);
-  };
-
-  const createManualCategory = async () => {
-    const name = newCategoryName.trim();
-    if (!name) {
-      toast.error("Nama kategori wajib diisi.");
-      return;
-    }
-
-    try {
-      setCategorySaving(true);
-      const response = await fetch("/api/admin/manual-categories", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, sortOrder: manualCategories.length + 1 }),
-      });
-      const data = await response.json();
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || "Gagal membuat kategori manual");
-      }
-
-      setManualCategories((prev) => [...prev, data.data].sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name)));
-      setCategories((prev) => Array.from(new Set([...prev, data.data.name])).sort());
-      setNewCategoryName("");
-      toast.success("Kategori manual berhasil dibuat.");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Gagal membuat kategori manual");
-    } finally {
-      setCategorySaving(false);
-    }
-  };
-
-  const toggleManualCategory = async (category: ManualCategory) => {
-    try {
-      const response = await fetch("/api/admin/manual-categories", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: category.id, isActive: !category.isActive }),
-      });
-      const data = await response.json();
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || "Gagal update kategori");
-      }
-
-      setManualCategories((prev) => prev.map((item) => item.id === category.id ? data.data : item));
-      toast.success(`Kategori ${category.isActive ? "dinonaktifkan" : "diaktifkan"}.`);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Gagal update kategori");
-    }
   };
 
   const saveManualProduct = async () => {
@@ -625,52 +574,21 @@ export default function ProductsPage() {
             </div>
 	          </div>
 
-	          <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm sm:rounded-3xl sm:p-6">
-	            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-	              <div>
-	                <h2 className="text-lg font-semibold text-slate-800">Kategori Manual</h2>
-	                <p className="mt-1 text-sm text-slate-500">
-	                  Kelompokkan produk dan brand manual agar pilihan admin tetap konsisten.
-	                </p>
-	              </div>
-	              <div className="flex w-full gap-2 sm:w-auto">
-	                <input
-	                  value={newCategoryName}
-	                  onChange={(e) => setNewCategoryName(e.target.value)}
-	                  onKeyDown={(e) => e.key === "Enter" && createManualCategory()}
-	                  placeholder="Nama kategori baru"
-	                  className="min-w-0 flex-1 rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 sm:w-56"
-	                />
-	                <button
-	                  onClick={createManualCategory}
-	                  disabled={categorySaving}
-	                  className="shrink-0 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50"
-	                >
-	                  Tambah
-	                </button>
-	              </div>
-	            </div>
-
-	            <div className="mt-4 flex flex-wrap gap-2">
-	              {manualCategories.map((category) => (
-	                <button
-	                  key={category.id}
-	                  onClick={() => toggleManualCategory(category)}
-	                  className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
-	                    category.isActive
-	                      ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-	                      : "border-slate-200 bg-slate-100 text-slate-500 hover:bg-slate-200"
-	                  }`}
-	                  title={category.isActive ? "Klik untuk nonaktifkan" : "Klik untuk aktifkan"}
-	                >
-	                  {category.name}
-	                </button>
-	              ))}
-	              {manualCategories.length === 0 && (
-	                <p className="text-sm text-slate-400">Belum ada kategori manual.</p>
-	              )}
-	            </div>
-	          </div>
+          <div className="rounded-2xl border border-slate-100 bg-blue-50 p-4 shadow-sm sm:rounded-3xl sm:p-5">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-blue-600">
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7h18M6 12h12M9 17h6" />
+                </svg>
+              </div>
+              <div>
+                <h2 className="text-sm font-semibold text-slate-800">Kategori dikelola di halaman Brand</h2>
+                <p className="mt-1 text-sm text-slate-600">
+                  Halaman produk sekarang hanya memakai kategori yang sudah ada. Untuk tambah, edit, urutan, atau aktif/nonaktif tab kategori frontend, gunakan menu <strong>Brand</strong>.
+                </p>
+              </div>
+            </div>
+          </div>
 
 	          {/* Filters */}
 	          <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm sm:rounded-3xl sm:p-6">
