@@ -1067,51 +1067,66 @@ export default function ProductsPage() {
 	                <div className="mt-6 space-y-4">
                   {editingProduct.provider === "MANUAL" && (
                     <div className="grid grid-cols-1 gap-3">
-                      <input
-                        value={editForm.name}
-                        onChange={(e) => setEditForm((prev) => ({ ...prev, name: e.target.value }))}
-                        placeholder="Nama produk"
-                        className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                      />
+                      <div>
+                        <label className="mb-1 block text-sm font-medium text-slate-700">Nama Produk</label>
+                        <input
+                          value={editForm.name}
+                          onChange={(e) => setEditForm((prev) => ({ ...prev, name: e.target.value }))}
+                          placeholder="Contoh: Akun Netflix 1 Bulan"
+                          className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                        />
+                      </div>
 	                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                          <div>
+	                        <label className="mb-1 block text-sm font-medium text-slate-700">Brand</label>
 	                        <select
 	                          value={editForm.brand}
-                          onChange={(e) => updateSelectedBrand(e.target.value)}
-                          className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                            onChange={(e) => updateSelectedBrand(e.target.value)}
+                            className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
 	                        >
-                            <option value="">Pilih brand</option>
-	                          {brandOptions.map((brand) => (
-	                            <option key={brand.brand} value={brand.brand}>
-	                              {brand.brand}
-	                            </option>
-	                          ))}
+                              <option value="">Pilih brand</option>
+	                            {brandOptions.map((brand) => (
+	                              <option key={brand.brand} value={brand.brand}>
+	                                {brand.brand}
+	                              </option>
+	                            ))}
 	                        </select>
+                          </div>
                           <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-700">
-                            <p className="text-[11px] font-medium text-slate-500">Kategori Otomatis</p>
+                            <p className="text-[11px] font-medium text-slate-500">Kategori Mengikuti Brand</p>
                             <p className="mt-1 font-semibold text-slate-800">{selectedBrandCategory || "-"}</p>
                           </div>
                       </div>
-	                      <input
-	                        value={editForm.providerCode}
-                        onChange={(e) => setEditForm((prev) => ({ ...prev, providerCode: e.target.value }))}
-                        placeholder="Kode produk manual"
-	                        className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-	                      />
-	                      <select
-	                        value={editForm.type}
-	                        onChange={(e) => setEditForm((prev) => ({ ...prev, type: e.target.value }))}
-	                        className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-	                      >
-	                        <option value="manual">Proses manual</option>
-	                        <option value="digital_stock">Produk digital otomatis</option>
-	                      </select>
-	                      <input
-                        type="number"
-                        value={editForm.providerPrice}
-                        onChange={(e) => setEditForm((prev) => ({ ...prev, providerPrice: parseFloat(e.target.value) || 0 }))}
-                        placeholder="Harga dasar"
-                        className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                      />
+                      <div>
+                        <label className="mb-1 block text-sm font-medium text-slate-700">Kode Produk</label>
+                        <input
+                          value={editForm.providerCode}
+                          onChange={(e) => setEditForm((prev) => ({ ...prev, providerCode: e.target.value }))}
+                          placeholder="Contoh: MANUAL-NETFLIX-1BULAN"
+                          className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-sm font-medium text-slate-700">Tipe Produk</label>
+                        <select
+                          value={editForm.type}
+                          onChange={(e) => setEditForm((prev) => ({ ...prev, type: e.target.value }))}
+                          className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                        >
+                          <option value="manual">Proses manual</option>
+                          <option value="digital_stock">Produk digital otomatis</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-sm font-medium text-slate-700">Harga Dasar</label>
+                        <input
+                          type="number"
+                          value={editForm.providerPrice}
+                          onChange={(e) => setEditForm((prev) => ({ ...prev, providerPrice: parseFloat(e.target.value) || 0 }))}
+                          placeholder="Contoh: 5000"
+                          className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                        />
+                      </div>
                     </div>
                   )}
 	                  <div>
@@ -1207,36 +1222,47 @@ export default function ProductsPage() {
 
                 <div className="flex-1 overflow-y-auto px-6 py-5">
                 <div className="grid gap-3">
-                  <input
-                    value={editForm.name}
-                    onChange={(e) => setEditForm((prev) => ({ ...prev, name: e.target.value }))}
-                    placeholder="Nama produk"
-                    className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                  />
+                      <div>
+                        <label className="mb-1 block text-sm font-medium text-slate-700">Nama Produk</label>
+                        <input
+                          value={editForm.name}
+                          onChange={(e) => setEditForm((prev) => ({ ...prev, name: e.target.value }))}
+                          placeholder="Contoh: Akun Netflix 1 Bulan"
+                          className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                        />
+                      </div>
 	                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <div>
+                        <label className="mb-1 block text-sm font-medium text-slate-700">Brand</label>
 	                    <select
 	                      value={editForm.brand}
-                        onChange={(e) => updateSelectedBrand(e.target.value)}
+                          onChange={(e) => updateSelectedBrand(e.target.value)}
 	                      className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
 	                    >
-                        <option value="">Pilih brand</option>
+                          <option value="">Pilih brand</option>
 	                      {brandOptions.map((brand) => (
 	                        <option key={brand.brand} value={brand.brand}>
 	                          {brand.brand}
 	                        </option>
 	                      ))}
 	                    </select>
+                      </div>
                       <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-700">
-                        <p className="text-[11px] font-medium text-slate-500">Kategori Otomatis</p>
+                        <p className="text-[11px] font-medium text-slate-500">Kategori Mengikuti Brand</p>
                         <p className="mt-1 font-semibold text-slate-800">{selectedBrandCategory || "-"}</p>
                       </div>
                   </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-slate-700">Kode Produk</label>
 	                  <input
 	                    value={editForm.providerCode}
-                    onChange={(e) => setEditForm((prev) => ({ ...prev, providerCode: e.target.value }))}
-                    placeholder="Kode unik produk"
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, providerCode: e.target.value }))}
+                      placeholder="Contoh: MANUAL-NETFLIX-1BULAN"
 	                    className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
 	                  />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-slate-700">Tipe Produk</label>
 	                  <select
 	                    value={editForm.type}
 	                    onChange={(e) => setEditForm((prev) => ({ ...prev, type: e.target.value }))}
@@ -1245,28 +1271,38 @@ export default function ProductsPage() {
 	                    <option value="manual">Proses manual</option>
 	                    <option value="digital_stock">Produk digital otomatis</option>
 	                  </select>
-	                  <div className="grid grid-cols-2 gap-3">
-                    <input
-                      type="number"
-                      value={editForm.providerPrice}
-                      onChange={(e) => setEditForm((prev) => ({ ...prev, providerPrice: parseFloat(e.target.value) || 0 }))}
-                      placeholder="Harga dasar"
-                      className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                    />
-                    <input
-                      type="number"
-                      value={editForm.margin}
-                      onChange={(e) => setEditForm((prev) => ({ ...prev, margin: parseFloat(e.target.value) || 0 }))}
-                      placeholder="Margin"
-                      className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-slate-700">Harga Dasar</label>
+                      <input
+                        type="number"
+                        value={editForm.providerPrice}
+                        onChange={(e) => setEditForm((prev) => ({ ...prev, providerPrice: parseFloat(e.target.value) || 0 }))}
+                        placeholder="Contoh: 5000"
+                        className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-slate-700">Margin Keuntungan</label>
+                      <input
+                        type="number"
+                        value={editForm.margin}
+                        onChange={(e) => setEditForm((prev) => ({ ...prev, margin: parseFloat(e.target.value) || 0 }))}
+                        placeholder="Contoh: 1000"
+                        className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-slate-700">Deskripsi / Instruksi</label>
+                    <textarea
+                      value={editForm.description}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, description: e.target.value }))}
+                      placeholder="Contoh: Akun dikirim otomatis setelah pembayaran sukses."
+                      className="min-h-20 w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                     />
                   </div>
-                  <textarea
-                    value={editForm.description}
-                    onChange={(e) => setEditForm((prev) => ({ ...prev, description: e.target.value }))}
-                    placeholder="Deskripsi / instruksi proses manual"
-                    className="min-h-20 w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                  />
                   <div className="rounded-xl bg-blue-50 p-4 text-sm text-blue-700">
                     Harga jual: <strong>{formatCurrency(editForm.providerPrice + editForm.margin)}</strong>
                   </div>
