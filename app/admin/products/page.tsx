@@ -160,7 +160,10 @@ export default function ProductsPage() {
             }))
             .sort((a: BrandOption, b: BrandOption) => a.brand.localeCompare(b.brand));
           setBrandOptions(nextBrandOptions);
-          setBrands(Array.from(new Set(nextBrandOptions.map((item: BrandOption) => item.brand))).sort());
+          const nextBrandNames: string[] = Array.from(
+            new Set<string>(nextBrandOptions.map((item: BrandOption) => item.brand))
+          ).sort();
+          setBrands(nextBrandNames);
         }
       }
     } catch (error) {
