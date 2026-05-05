@@ -170,6 +170,10 @@ export async function POST(request: NextRequest) {
       await tx.$executeRaw`
         UPDATE brand_meta SET manualCategoryId = ${manualCategory.id} WHERE brand = ${brand}
       `;
+      await tx.product.updateMany({
+        where: { provider: "MANUAL", brand },
+        data: { category: manualCategory.name },
+      });
       return meta;
     });
 
@@ -214,6 +218,10 @@ export async function PUT(request: NextRequest) {
         await tx.$executeRaw`
           UPDATE brand_meta SET manualCategoryId = ${manualCategory.id} WHERE brand = ${brand}
         `;
+        await tx.product.updateMany({
+          where: { provider: "MANUAL", brand },
+          data: { category: manualCategory.name },
+        });
       }
 
       return meta;

@@ -44,6 +44,17 @@ interface ManualCategoryRow {
   slug: string;
 }
 
+async function findBrandCategoryName(brand: string, client: Prisma.TransactionClient | typeof prisma = prisma) {
+  const rows = await client.$queryRaw<Array<{ category: string | null }>>`
+    SELECT mc.name AS category
+    FROM brand_meta bm
+    LEFT JOIN manual_categories mc ON mc.id = bm.manualCategoryId
+    WHERE bm.brand = ${brand}
+    LIMIT 1
+  `;
+  return rows[0]?.category ?? null;
+}
+
 async function findManualCategoryByName(name: string, client: Prisma.TransactionClient | typeof prisma = prisma) {
   const rows = await client.$queryRaw<ManualCategoryRow[]>`
     SELECT id, name, slug FROM manual_categories WHERE name = ${name} LIMIT 1
@@ -144,7 +155,6 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const name = String(body.name ?? "").trim();
-    const category = String(body.category ?? "").trim();
     const brand = String(body.brand ?? "").trim();
     const type = String(body.type ?? "manual").trim() || "manual";
     const providerCode = String(body.providerCode ?? `MANUAL-${Date.now()}`).trim();
@@ -154,14 +164,19 @@ export async function POST(request: Request) {
       ? Math.max(0, Number(body.sellingPrice))
       : providerPrice + margin;
 
-    if (!name || !category || !brand || !providerCode) {
+    if (!name || !brand || !providerCode) {
       return NextResponse.json(
-        { success: false, error: "Nama, kategori, brand, dan kode produk wajib diisi." },
+        { success: false, error: "Nama, brand, dan kode produk wajib diisi." },
         { status: 400 }
       );
     }
 
     const product = await prisma.$transaction(async (tx) => {
+      const category = await findBrandCategoryName(brand, tx);
+      if (!category) {
+        throw new Error("Brand belum memiliki kategori. Atur kategori brand terlebih dahulu di halaman Brand.");
+      }
+
       const manualCategory = await ensureManualCategory(category, tx);
 
       const createdProduct = await tx.product.create({
@@ -198,7 +213,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("Failed to create manual product:", error);
     return NextResponse.json(
-      { success: false, error: "Gagal membuat produk manual. Pastikan kode produk belum dipakai." },
+      { success: false, error: error instanceof Error ? error.message : "Gagal membuat produk manual. Pastikan kode produk belum dipakai." },
       { status: 500 }
     );
   }
@@ -249,11 +264,11 @@ export async function PUT(request: Request) {
     if (currentProduct.provider === "MANUAL") {
       const providerPrice = body.providerPrice !== undefined ? Math.max(0, Number(body.providerPrice)) : Number(currentProduct.providerPrice);
       const sellingPrice = body.sellingPrice !== undefined ? Math.max(0, Number(body.sellingPrice)) : providerPrice + Number(updateData.margin ?? currentProduct.margin);
+      const nextBrand = body.brand !== undefined ? String(body.brand).trim() : currentProduct.brand;
 
       if (body.providerCode !== undefined) updateData.providerCode = String(body.providerCode).trim();
       if (body.name !== undefined) updateData.name = String(body.name).trim();
-      if (body.category !== undefined) updateData.category = String(body.category).trim();
-      if (body.brand !== undefined) updateData.brand = String(body.brand).trim();
+      if (body.brand !== undefined) updateData.brand = nextBrand;
       if (body.type !== undefined) updateData.type = String(body.type).trim() || "manual";
       if (body.providerPrice !== undefined) updateData.providerPrice = providerPrice;
       if (body.sellingPrice !== undefined || body.providerPrice !== undefined) {
@@ -269,6 +284,15 @@ export async function PUT(request: Request) {
     }
 
     const updatedProduct = await prisma.$transaction(async (tx) => {
+      if (currentProduct.provider === "MANUAL") {
+        const effectiveBrand = String(updateData.brand ?? currentProduct.brand);
+        const category = await findBrandCategoryName(effectiveBrand, tx);
+        if (!category) {
+          throw new Error("Brand belum memiliki kategori. Atur kategori brand terlebih dahulu di halaman Brand.");
+        }
+        updateData.category = category;
+      }
+
       const product = await tx.product.update({
         where: { id },
         data: updateData,
@@ -303,7 +327,7 @@ export async function PUT(request: Request) {
     return NextResponse.json(
       {
         success: false,
-        error: "Failed to update product",
+        error: error instanceof Error ? error.message : "Failed to update product",
       },
       { status: 500 }
     );

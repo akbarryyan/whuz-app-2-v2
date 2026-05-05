@@ -49,6 +49,11 @@ interface ManualCategory {
   brandCount: number;
 }
 
+interface BrandOption {
+  brand: string;
+  category: string;
+}
+
 interface FilterState {
   search: string;
   provider: string;
@@ -74,6 +79,7 @@ export default function ProductsPage() {
   const [categories, setCategories] = useState<string[]>([]);
   const [manualCategories, setManualCategories] = useState<ManualCategory[]>([]);
   const [brands, setBrands] = useState<string[]>([]);
+  const [brandOptions, setBrandOptions] = useState<BrandOption[]>([]);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showStockModal, setShowStockModal] = useState(false);
@@ -106,6 +112,7 @@ export default function ProductsPage() {
   const itemsPerPage = 20;
   const toast = useToast();
   const activeManualCategories = manualCategories.filter((category) => category.isActive);
+  const selectedBrandCategory = brandOptions.find((item) => item.brand === editForm.brand)?.category ?? "";
 
   useEffect(() => {
     loadProducts();
@@ -115,11 +122,12 @@ export default function ProductsPage() {
   const loadProducts = async () => {
     try {
       setLoading(true);
-      const [response, categoriesResponse] = await Promise.all([
+      const [response, categoriesResponse, brandsResponse] = await Promise.all([
         fetch("/api/admin/products", {
         cache: "no-store",
         }),
         fetch("/api/admin/manual-categories", { cache: "no-store" }),
+        fetch("/api/admin/brands", { cache: "no-store" }),
       ]);
       if (!response.ok) {
         throw new Error("Gagal memuat daftar produk");
@@ -139,6 +147,20 @@ export default function ProductsPage() {
         const categoriesData = await categoriesResponse.json();
         if (categoriesData.success && Array.isArray(categoriesData.data)) {
           setManualCategories(categoriesData.data);
+        }
+      }
+      if (brandsResponse.ok) {
+        const brandsData = await brandsResponse.json();
+        if (brandsData.success && Array.isArray(brandsData.data)) {
+          const nextBrandOptions = brandsData.data
+            .filter((item: { brand?: string; category?: string }) => item.brand && item.category)
+            .map((item: { brand: string; category: string }) => ({
+              brand: item.brand,
+              category: item.category,
+            }))
+            .sort((a: BrandOption, b: BrandOption) => a.brand.localeCompare(b.brand));
+          setBrandOptions(nextBrandOptions);
+          setBrands(Array.from(new Set(nextBrandOptions.map((item: BrandOption) => item.brand))).sort());
         }
       }
     } catch (error) {
@@ -235,12 +257,18 @@ export default function ProductsPage() {
   };
 
   const openCreateModal = () => {
-    const defaultCategory = activeManualCategories[0]?.name ?? "Top Up Game";
+    if (brandOptions.length === 0) {
+      toast.error("Belum ada brand yang bisa dipilih. Buat dan kategorikan brand dulu di halaman Brand.");
+      return;
+    }
+
+    const defaultBrand = brandOptions[0]?.brand ?? "";
+    const defaultCategory = brandOptions[0]?.category ?? activeManualCategories[0]?.name ?? "";
     setEditForm({
       providerCode: `MANUAL-${Date.now()}`,
       name: "",
       category: defaultCategory,
-      brand: "",
+      brand: defaultBrand,
       type: "manual",
       providerPrice: 0,
       margin: 0,
@@ -252,12 +280,29 @@ export default function ProductsPage() {
     setShowCreateModal(true);
   };
 
+  const updateSelectedBrand = (brand: string) => {
+    const nextCategory = brandOptions.find((item) => item.brand === brand)?.category ?? "";
+    setEditForm((prev) => ({
+      ...prev,
+      brand,
+      category: nextCategory,
+    }));
+  };
+
   const saveManualProduct = async () => {
+    if (!editForm.brand) {
+      toast.error("Pilih brand terlebih dahulu.");
+      return;
+    }
+
     try {
       const response = await fetch("/api/admin/products", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editForm),
+        body: JSON.stringify({
+          ...editForm,
+          category: selectedBrandCategory,
+        }),
       });
       const data = await response.json();
       if (!response.ok || !data.success) {
@@ -366,6 +411,10 @@ export default function ProductsPage() {
 
   const saveProductChanges = async () => {
     if (!editingProduct) return;
+    if (editingProduct.provider === "MANUAL" && !editForm.brand) {
+      toast.error("Pilih brand terlebih dahulu.");
+      return;
+    }
 
     try {
       const response = await fetch("/api/admin/products", {
@@ -373,7 +422,7 @@ export default function ProductsPage() {
         headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             id: editingProduct.id,
-            ...(editingProduct.provider === "MANUAL" ? editForm : {}),
+            ...(editingProduct.provider === "MANUAL" ? { ...editForm, category: selectedBrandCategory } : {}),
             margin: editForm.margin,
             isActive: editForm.isActive,
           }),
@@ -990,8 +1039,8 @@ export default function ProductsPage() {
           {/* Edit Product Modal */}
 	          {showEditModal && editingProduct && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-md px-4">
-              <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-xl">
-                <div className="flex items-center justify-between">
+              <div className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-3xl bg-white shadow-xl">
+                <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
                   <h3 className="text-xl font-bold text-slate-800">Edit Produk</h3>
                   <button
                     onClick={() => setShowEditModal(false)}
@@ -1003,13 +1052,14 @@ export default function ProductsPage() {
                   </button>
                 </div>
 
-                <div className="mt-4 rounded-xl bg-slate-50 p-4">
-                  <p className="text-xs font-medium text-slate-500">Nama Produk</p>
-                  <p className="mt-1 font-semibold text-slate-800">{editingProduct.name}</p>
-                  <p className="mt-2 text-xs text-slate-500">
-                    Provider: {editingProduct.provider.replace("_", " ")} • {editingProduct.providerCode}
-                  </p>
-                </div>
+                <div className="flex-1 overflow-y-auto px-6 py-5">
+                  <div className="rounded-xl bg-slate-50 p-4">
+                    <p className="text-xs font-medium text-slate-500">Nama Produk</p>
+                    <p className="mt-1 font-semibold text-slate-800">{editingProduct.name}</p>
+                    <p className="mt-2 text-xs text-slate-500">
+                      Provider: {editingProduct.provider.replace("_", " ")} • {editingProduct.providerCode}
+                    </p>
+                  </div>
 
 	                <div className="mt-6 space-y-4">
                   {editingProduct.provider === "MANUAL" && (
@@ -1020,25 +1070,23 @@ export default function ProductsPage() {
                         placeholder="Nama produk"
                         className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                       />
-	                      <div className="grid grid-cols-2 gap-3">
+	                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
 	                        <select
-	                          value={editForm.category}
-	                          onChange={(e) => setEditForm((prev) => ({ ...prev, category: e.target.value }))}
-	                          className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+	                          value={editForm.brand}
+                          onChange={(e) => updateSelectedBrand(e.target.value)}
+                          className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
 	                        >
-	                          <option value="">Pilih kategori</option>
-	                          {activeManualCategories.map((category) => (
-	                            <option key={category.id} value={category.name}>
-	                              {category.name}
+                            <option value="">Pilih brand</option>
+	                          {brandOptions.map((brand) => (
+	                            <option key={brand.brand} value={brand.brand}>
+	                              {brand.brand}
 	                            </option>
 	                          ))}
 	                        </select>
-	                        <input
-	                          value={editForm.brand}
-                          onChange={(e) => setEditForm((prev) => ({ ...prev, brand: e.target.value }))}
-                          placeholder="Brand"
-                          className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                        />
+                          <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-700">
+                            <p className="text-[11px] font-medium text-slate-500">Kategori Otomatis</p>
+                            <p className="mt-1 font-semibold text-slate-800">{selectedBrandCategory || "-"}</p>
+                          </div>
                       </div>
 	                      <input
 	                        value={editForm.providerCode}
@@ -1121,7 +1169,10 @@ export default function ProductsPage() {
 	                  </div>
                 </div>
 
-                <div className="mt-6 flex gap-3">
+                  </div>
+                </div>
+
+                <div className="flex gap-3 border-t border-slate-100 px-6 py-4">
                   <button
                     onClick={() => setShowEditModal(false)}
                     className="flex-1 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
@@ -1140,8 +1191,8 @@ export default function ProductsPage() {
 	          )}
           {showCreateModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-md px-4">
-              <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-xl">
-                <div className="flex items-center justify-between">
+              <div className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-3xl bg-white shadow-xl">
+                <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
                   <h3 className="text-xl font-bold text-slate-800">Tambah Produk Manual</h3>
                   <button
                     onClick={() => setShowCreateModal(false)}
@@ -1153,32 +1204,31 @@ export default function ProductsPage() {
                   </button>
                 </div>
 
-                <div className="mt-5 grid gap-3">
+                <div className="flex-1 overflow-y-auto px-6 py-5">
+                <div className="grid gap-3">
                   <input
                     value={editForm.name}
                     onChange={(e) => setEditForm((prev) => ({ ...prev, name: e.target.value }))}
                     placeholder="Nama produk"
                     className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                   />
-	                  <div className="grid grid-cols-2 gap-3">
+	                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
 	                    <select
-	                      value={editForm.category}
-	                      onChange={(e) => setEditForm((prev) => ({ ...prev, category: e.target.value }))}
+	                      value={editForm.brand}
+                        onChange={(e) => updateSelectedBrand(e.target.value)}
 	                      className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
 	                    >
-	                      <option value="">Pilih kategori</option>
-	                      {activeManualCategories.map((category) => (
-	                        <option key={category.id} value={category.name}>
-	                          {category.name}
+                        <option value="">Pilih brand</option>
+	                      {brandOptions.map((brand) => (
+	                        <option key={brand.brand} value={brand.brand}>
+	                          {brand.brand}
 	                        </option>
 	                      ))}
 	                    </select>
-	                    <input
-	                      value={editForm.brand}
-                      onChange={(e) => setEditForm((prev) => ({ ...prev, brand: e.target.value }))}
-                      placeholder="Brand"
-                      className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                    />
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-700">
+                        <p className="text-[11px] font-medium text-slate-500">Kategori Otomatis</p>
+                        <p className="mt-1 font-semibold text-slate-800">{selectedBrandCategory || "-"}</p>
+                      </div>
                   </div>
 	                  <input
 	                    value={editForm.providerCode}
@@ -1220,8 +1270,9 @@ export default function ProductsPage() {
                     Harga jual: <strong>{formatCurrency(editForm.providerPrice + editForm.margin)}</strong>
                   </div>
                 </div>
+                </div>
 
-                <div className="mt-6 flex gap-3">
+                <div className="flex gap-3 border-t border-slate-100 px-6 py-4">
                   <button
                     onClick={() => setShowCreateModal(false)}
                     className="flex-1 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
