@@ -7,22 +7,49 @@ interface CategoriesProps {
   onCategoryChange: (category: string | null) => void;
 }
 
+interface CategoryTab {
+  label: string;
+  value: string | null;
+}
+
+const DEFAULT_CATEGORIES: CategoryTab[] = [
+  { label: "Semua", value: null },
+  { label: "Top Up Game", value: "top-up-game" },
+  { label: "Pulsa & Data", value: "pulsa-data" },
+  { label: "E-Wallet", value: "e-wallet" },
+  { label: "Token Listrik", value: "token-listrik" },
+];
+
 export default function Categories({ activeCategory, onCategoryChange }: CategoriesProps) {
   const [underlineStyle, setUnderlineStyle] = useState({ left: 0, width: 0 });
   const [isSticky, setIsSticky] = useState(false);
+  const [categories, setCategories] = useState<CategoryTab[]>(DEFAULT_CATEGORIES);
   const tabsRef = useRef<(HTMLButtonElement | null)[]>([]);
-
-  // value matches typeGroup param in /api/catalog/brands
-  const categories = [
-    { label: "Semua", value: null },
-    { label: "Top Up Game", value: "game" },
-    { label: "Pulsa & Data", value: "pulsa" },
-    { label: "E-Wallet", value: "ewallet" },
-    { label: "Token Listrik", value: "listrik" },
-  ];
 
   const activeIdx = categories.findIndex((c) => c.value === activeCategory);
   const resolvedIdx = activeIdx === -1 ? 0 : activeIdx;
+
+  useEffect(() => {
+    fetch("/api/catalog/categories")
+      .then((response) => response.json())
+      .then((result) => {
+        if (!result?.success || !Array.isArray(result.data) || result.data.length === 0) return;
+        setCategories([
+          { label: "Semua", value: null },
+          ...result.data.map((item: { label: string; value: string }) => ({
+            label: item.label,
+            value: item.value,
+          })),
+        ]);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (activeCategory && !categories.some((category) => category.value === activeCategory)) {
+      onCategoryChange(null);
+    }
+  }, [activeCategory, categories, onCategoryChange]);
 
   useEffect(() => {
     const activeButton = tabsRef.current[resolvedIdx];
@@ -53,7 +80,7 @@ export default function Categories({ activeCategory, onCategoryChange }: Categor
         <div className="relative flex gap-6 px-4 lg:flex-wrap lg:items-center lg:justify-start lg:gap-4 lg:px-0 lg:py-0">
           {categories.map((category, idx) => (
             <button
-              key={idx}
+              key={category.value ?? "all"}
               ref={(el) => {
                 tabsRef.current[idx] = el;
               }}

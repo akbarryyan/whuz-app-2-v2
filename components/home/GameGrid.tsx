@@ -63,15 +63,15 @@ export default function GameGrid({ category }: GameGridProps) {
       setShowAll(false);
     });
     const url = category
-      ? `/api/catalog/brands?typeGroup=${encodeURIComponent(category)}`
+      ? `/api/catalog/brands?category=${encodeURIComponent(category)}`
       : "/api/catalog/brands";
     fetch(url)
       .then((r) => r.json())
       .then((res) => {
         if (res.success) {
           let data: BrandItem[] = res.data;
-          // Apply priority sorting for "Semua" (null) and "game" categories
-          if (!category || category === "game") {
+          // Apply priority sorting for "Semua" and game-centric categories
+          if (!category || /game/i.test(category)) {
             const priorityLower = PRIORITY_BRANDS.map((b) => b.toLowerCase());
             data = [...data].sort((a, b) => {
               const idxA = priorityLower.indexOf(a.brand.toLowerCase());

@@ -62,15 +62,12 @@ async function ensureManualCategory(name: string, client: Prisma.TransactionClie
  */
 export async function GET() {
   try {
-    // All distinct brand names from active products
-    const productBrands = await prisma.product.findMany({
+    const products = await prisma.product.findMany({
       where: { isActive: true },
-      select: { brand: true, category: true },
-      distinct: ["brand"],
+      select: { brand: true, category: true, provider: true },
       orderBy: { brand: "asc" },
     });
 
-    // Fetch all BrandMeta
     const metas = await prisma.brandMeta.findMany({
       select: { brand: true, imageUrl: true, inputFields: true, updatedAt: true },
     });
@@ -92,16 +89,31 @@ export async function GET() {
       };
     }
 
-    const data = productBrands.map((b) => ({
-      brand: b.brand,
-      category: metaMap[b.brand]?.category ?? b.category,
-      slug: b.brand
+    const statsMap = new Map<string, { category: string; manualProductCount: number; providerProductCount: number }>();
+    for (const product of products) {
+      const current = statsMap.get(product.brand) ?? {
+        category: product.category,
+        manualProductCount: 0,
+        providerProductCount: 0,
+      };
+      if (product.provider === "MANUAL") current.manualProductCount += 1;
+      else current.providerProductCount += 1;
+      statsMap.set(product.brand, current);
+    }
+
+    const data = Array.from(statsMap.entries()).map(([brandName, stats]) => ({
+      brand: brandName,
+      category: metaMap[brandName]?.category ?? stats.category,
+      slug: brandName
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/(^-|-$)/g, ""),
-      imageUrl: metaMap[b.brand]?.imageUrl ?? null,
-      inputFields: metaMap[b.brand]?.inputFields ?? null,
-      updatedAt: metaMap[b.brand]?.updatedAt ?? null,
+      imageUrl: metaMap[brandName]?.imageUrl ?? null,
+      inputFields: metaMap[brandName]?.inputFields ?? null,
+      updatedAt: metaMap[brandName]?.updatedAt ?? null,
+      manualProductCount: stats.manualProductCount,
+      providerProductCount: stats.providerProductCount,
+      canDelete: stats.providerProductCount === 0,
     }));
 
     for (const meta of metas) {
@@ -116,8 +128,13 @@ export async function GET() {
         imageUrl: meta.imageUrl ?? null,
         inputFields: meta.inputFields ?? null,
         updatedAt: meta.updatedAt,
+        manualProductCount: 0,
+        providerProductCount: 0,
+        canDelete: true,
       });
     }
+
+    data.sort((a, b) => a.brand.localeCompare(b.brand));
 
     return NextResponse.json({ success: true, data });
   } catch (error) {
@@ -245,10 +262,59 @@ export async function PATCH(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const body = await request.json();
-    const { brand } = body as { brand: string };
+    const { brand, mode } = body as { brand: string; mode?: "image" | "brand" };
 
     if (!brand) {
       return NextResponse.json({ success: false, error: "brand diperlukan." }, { status: 400 });
+    }
+
+    if (mode === "brand") {
+      const linkedProducts = await prisma.product.findMany({
+        where: { brand },
+        select: { id: true, provider: true },
+      });
+
+      if (linkedProducts.some((product) => product.provider !== "MANUAL")) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Brand provider tidak bisa dihapus. Brand ini masih terhubung ke produk sinkronisasi provider.",
+          },
+          { status: 409 }
+        );
+      }
+
+      const productIds = linkedProducts.map((product) => product.id);
+
+      if (productIds.length > 0) {
+        const orderCount = await prisma.order.count({
+          where: { productId: { in: productIds } },
+        });
+
+        if (orderCount > 0) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: "Brand tidak bisa dihapus karena sudah memiliki transaksi.",
+            },
+            { status: 409 }
+          );
+        }
+      }
+
+      await prisma.$transaction(async (tx) => {
+        if (productIds.length > 0) {
+          await tx.product.deleteMany({
+            where: { id: { in: productIds } },
+          });
+        }
+
+        await tx.brandMeta.deleteMany({
+          where: { brand },
+        });
+      });
+
+      return NextResponse.json({ success: true });
     }
 
     await prisma.brandMeta.upsert({
