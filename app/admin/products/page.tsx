@@ -1168,6 +1168,7 @@ export default function ProductsPage() {
 	                    </div>
 	                  </div>
                 </div>
+                </div>
 
                 <div className="flex gap-3 border-t border-slate-100 px-6 py-4">
                   <button
