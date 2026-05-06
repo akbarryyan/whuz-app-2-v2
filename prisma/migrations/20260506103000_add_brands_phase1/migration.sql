@@ -39,6 +39,7 @@ ALTER TABLE `brand_reviews`
     FOREIGN KEY (`brandId`) REFERENCES `brands`(`id`)
     ON DELETE SET NULL ON UPDATE CASCADE;
 
+INSERT INTO `brands` (`id`, `name`, `slug`, `imageUrl`, `inputFields`, `manualCategoryId`, `isActive`, `createdAt`, `updatedAt`)
 WITH source_brands AS (
     SELECT DISTINCT `brand` AS `name`
     FROM `brand_meta`
@@ -81,7 +82,6 @@ ranked_brands AS (
         ROW_NUMBER() OVER (PARTITION BY `slugBase` ORDER BY `name`) AS `slugRank`
     FROM brand_seed
 )
-INSERT INTO `brands` (`id`, `name`, `slug`, `imageUrl`, `inputFields`, `manualCategoryId`, `isActive`, `createdAt`, `updatedAt`)
 SELECT
     `id`,
     `name`,
