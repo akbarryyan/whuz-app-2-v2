@@ -134,12 +134,23 @@ export async function POST(req: NextRequest) {
 
   const product = await prisma.product.findUnique({
     where: { id: parsed.data.productId },
-    select: { id: true, isActive: true, stock: true },
+    select: { id: true, isActive: true, stock: true, sellingPrice: true },
   });
 
   if (!product || !product.isActive || !product.stock) {
     return NextResponse.json({ success: false, error: "Produk tidak tersedia untuk seller" }, { status: 404 });
   }
+
+  const websiteSellingPrice = Number(product.sellingPrice);
+  const merchantSellingPrice = parsed.data.sellingPrice ?? websiteSellingPrice;
+  if (merchantSellingPrice < websiteSellingPrice) {
+    return NextResponse.json(
+      { success: false, error: "Harga jual merchant tidak boleh di bawah harga website" },
+      { status: 422 }
+    );
+  }
+
+  const merchantMargin = Math.max(0, merchantSellingPrice - websiteSellingPrice);
 
   const sellerProduct = await prisma.sellerProduct.upsert({
     where: {
@@ -151,17 +162,17 @@ export async function POST(req: NextRequest) {
     create: {
       sellerId: seller.session.userId!,
       productId: parsed.data.productId,
-      sellingPrice: parsed.data.sellingPrice,
-      commissionType: parsed.data.commissionType,
-      commissionValue: parsed.data.commissionValue,
+      sellingPrice: merchantSellingPrice,
+      commissionType: "FIXED",
+      commissionValue: merchantMargin,
       feeType: parsed.data.feeType,
       feeValue: parsed.data.feeValue,
       isActive: parsed.data.isActive ?? true,
     },
     update: {
-      sellingPrice: parsed.data.sellingPrice,
-      commissionType: parsed.data.commissionType,
-      commissionValue: parsed.data.commissionValue,
+      sellingPrice: merchantSellingPrice,
+      commissionType: "FIXED",
+      commissionValue: merchantMargin,
       feeType: parsed.data.feeType,
       feeValue: parsed.data.feeValue,
       isActive: parsed.data.isActive ?? true,

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/src/infra/db/prisma";
 import { matchesFrontendCategory, matchesFrontendTypeGroup } from "@/lib/frontend-category";
+import { slugifyBrand } from "@/lib/brand-utils";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,7 @@ export async function GET(request: NextRequest) {
     const typeGroup = searchParams.get("typeGroup") ?? undefined;
     const categorySlug = searchParams.get("category") ?? undefined;
 
-    const [products, sellerProducts, brandCategories, selectedCategoryRows] = await Promise.all([
+    const [products, sellerProducts, brands, selectedCategoryRows] = await Promise.all([
       prisma.product.findMany({
         where: {
           isActive: true,
@@ -51,10 +52,10 @@ export async function GET(request: NextRequest) {
           },
         },
       }),
-      prisma.$queryRaw<Array<{ brand: string; category: string | null }>>`
-        SELECT bm.brand, mc.name AS category
-        FROM brand_meta bm
-        LEFT JOIN manual_categories mc ON mc.id = bm.manualCategoryId
+      prisma.$queryRaw<Array<{ name: string; imageUrl: string | null; category: string | null }>>`
+        SELECT b.name, b.imageUrl, mc.name AS category
+        FROM brands b
+        LEFT JOIN manual_categories mc ON mc.id = b.manualCategoryId
       `,
       categorySlug
         ? prisma.$queryRaw<Array<{ name: string }>>`
@@ -69,8 +70,10 @@ export async function GET(request: NextRequest) {
     const selectedCategoryName = selectedCategoryRows[0]?.name ?? null;
 
     const brandCategoryMap = new Map<string, string | null>();
-    for (const item of brandCategories) {
-      brandCategoryMap.set(item.brand, item.category);
+    const metaMap: Record<string, { imageUrl: string | null }> = {};
+    for (const item of brands) {
+      brandCategoryMap.set(item.name, item.category);
+      metaMap[item.name] = { imageUrl: item.imageUrl ?? null };
     }
 
     const filteredProducts = products.filter((item) => {
@@ -111,19 +114,9 @@ export async function GET(request: NextRequest) {
 
     const brandNames = Array.from(new Set(filteredProducts.map((item) => item.brand))).sort((a, b) => a.localeCompare(b));
 
-    const metas = await prisma.brandMeta.findMany({
-      where: { brand: { in: brandNames } },
-      select: { brand: true, imageUrl: true },
-    });
-    const metaMap: Record<string, { imageUrl: string | null }> = {};
-    for (const m of metas) metaMap[m.brand] = { imageUrl: m.imageUrl ?? null };
-
     const data = brandNames.map((brand) => ({
       brand,
-      slug: brand
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/(^-|-$)/g, ""),
+      slug: slugifyBrand(brand),
       productCount: merchantCounts.get(brand) ?? 0,
       hasMerchantProducts: (merchantCounts.get(brand) ?? 0) > 0,
       imageUrl: metaMap[brand]?.imageUrl ?? null,

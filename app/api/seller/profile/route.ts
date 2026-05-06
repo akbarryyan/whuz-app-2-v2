@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
         displayName: parsed.data.displayName.trim(),
         description: parsed.data.description?.trim() || null,
         profileImageUrl: parsed.data.profileImageUrl?.trim() || null,
-        isActive: true,
+        isActive: false,
       },
       update: {
         slug: requestedSlug,

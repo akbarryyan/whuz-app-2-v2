@@ -14,17 +14,17 @@ interface PublicCategoryRow {
 
 export async function GET() {
   try {
-    const [categories, brandCategories, products] = await Promise.all([
+    const [categories, brands, products] = await Promise.all([
       prisma.$queryRaw<PublicCategoryRow[]>`
         SELECT id, name, slug, sortOrder, isActive
         FROM manual_categories
         WHERE isActive = true
         ORDER BY sortOrder ASC, name ASC
       `,
-      prisma.$queryRaw<Array<{ brand: string; category: string | null }>>`
-        SELECT bm.brand, mc.name AS category
-        FROM brand_meta bm
-        LEFT JOIN manual_categories mc ON mc.id = bm.manualCategoryId
+      prisma.$queryRaw<Array<{ name: string; category: string | null }>>`
+        SELECT b.name, mc.name AS category
+        FROM brands b
+        LEFT JOIN manual_categories mc ON mc.id = b.manualCategoryId
       `,
       prisma.product.findMany({
         where: {
@@ -39,8 +39,8 @@ export async function GET() {
     ]);
 
     const brandCategoryMap = new Map<string, string | null>();
-    for (const item of brandCategories) {
-      brandCategoryMap.set(item.brand, item.category);
+    for (const item of brands) {
+      brandCategoryMap.set(item.name, item.category);
     }
 
     return NextResponse.json({

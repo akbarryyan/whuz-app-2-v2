@@ -19,10 +19,11 @@ export async function GET(
     const { brand: brandSlug } = await params;
     const page = Math.max(1, Number(req.nextUrl.searchParams.get("page") ?? "1"));
     const skip = (page - 1) * PAGE_SIZE;
+    const reviewWhere = { brandSlug, isApproved: true };
 
     const [reviews, total, aggregate] = await Promise.all([
       prisma.brandReview.findMany({
-        where: { brandSlug, isApproved: true },
+        where: reviewWhere,
         orderBy: { createdAt: "desc" },
         skip,
         take: PAGE_SIZE,
@@ -34,9 +35,9 @@ export async function GET(
           createdAt: true,
         },
       }),
-      prisma.brandReview.count({ where: { brandSlug, isApproved: true } }),
+      prisma.brandReview.count({ where: reviewWhere }),
       prisma.brandReview.aggregate({
-        where: { brandSlug, isApproved: true },
+        where: reviewWhere,
         _avg: { rating: true },
         _count: { rating: true },
       }),
@@ -45,7 +46,7 @@ export async function GET(
     // Rating distribution (1-5)
     const dist = await prisma.brandReview.groupBy({
       by: ["rating"],
-      where: { brandSlug, isApproved: true },
+      where: reviewWhere,
       _count: { rating: true },
     });
     const distribution: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
@@ -116,20 +117,26 @@ export async function POST(
     }
 
     // Verify brand exists
-    const brandExists = await prisma.product.findFirst({
-      where: { isActive: true },
-      select: { brand: true },
-    }).then(async () => {
-      const allBrands = await prisma.product.findMany({
-        where: { isActive: true, stock: true },
-        select: { brand: true },
-        distinct: ["brand"],
-      });
-      return allBrands.some((b) => {
-        const slug = b.brand.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-        return slug === brandSlug;
-      });
-    });
+    const brandRows = await prisma.$queryRaw<Array<{ id: string; name: string }>>`
+      SELECT id, name FROM brands WHERE slug = ${brandSlug} LIMIT 1
+    `;
+    const brandRecord = brandRows[0] ?? null;
+    const brandExists = brandRecord
+      ? true
+      : await prisma.product.findFirst({
+          where: { isActive: true, stock: true },
+          select: { brand: true },
+        }).then(async () => {
+          const allBrands = await prisma.product.findMany({
+            where: { isActive: true, stock: true },
+            select: { brand: true },
+            distinct: ["brand"],
+          });
+          return allBrands.some((b) => {
+            const slug = b.brand.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+            return slug === brandSlug;
+          });
+        });
 
     if (!brandExists) {
       return NextResponse.json({ success: false, error: "Brand tidak ditemukan." }, { status: 404 });
@@ -163,6 +170,14 @@ export async function POST(
         isApproved: false, // re-submit resets approval
       },
     });
+
+    if (brandRecord?.id) {
+      await prisma.$executeRaw`
+        UPDATE brand_reviews
+        SET brandId = ${brandRecord.id}
+        WHERE brandSlug = ${brandSlug} AND userId = ${session.userId}
+      `;
+    }
 
     return NextResponse.json({
       success: true,

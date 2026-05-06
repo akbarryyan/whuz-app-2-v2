@@ -103,7 +103,7 @@ export default function MerchantPricingPage() {
         <div className="flex flex-col gap-4 sm:gap-6">
           <MerchantHeader
             title="Pricing Merchant"
-            subtitle="Atur harga jual sendiri dan fee platform untuk tiap produk merchant."
+            subtitle="Atur harga jual merchant di atas harga website, lalu tentukan potongan platform dari margin merchant bila diperlukan."
             onMenuClick={() => setSidebarOpen(true)}
           />
 
@@ -111,7 +111,7 @@ export default function MerchantPricingPage() {
             <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-sm font-semibold text-slate-800">Katalog Pricing Merchant</p>
-                <p className="text-xs text-slate-400">Cari produk lalu atur harga jual dan fee merchant.</p>
+                <p className="text-xs text-slate-400">Cari produk lalu atur harga jual merchant dan potongan platform dari margin merchant.</p>
               </div>
               <div className="flex flex-col gap-2 sm:w-[320px]">
                 <input
@@ -147,11 +147,17 @@ export default function MerchantPricingPage() {
                           {row.product.brand} • {row.product.provider} • {row.product.providerCode}
                         </p>
                         <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                          <span className="rounded-full bg-blue-50 px-3 py-1 font-medium text-blue-700">
+                            Harga website: {rupiah(row.product.defaultSellingPrice)}
+                          </span>
                           <span className="rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-600">
                             Provider: {rupiah(row.product.providerPrice)}
                           </span>
+                          <span className="rounded-full bg-amber-50 px-3 py-1 font-medium text-amber-700">
+                            Margin merchant: {rupiah(row.margin)}
+                          </span>
                           <span className="rounded-full bg-emerald-50 px-3 py-1 font-medium text-emerald-700">
-                            Margin Saat Ini: {rupiah(Math.max(0, row.sellingPrice - row.product.providerPrice))}
+                            Harga jual merchant: {rupiah(row.sellingPrice)}
                           </span>
                         </div>
                       </div>
@@ -171,15 +177,18 @@ export default function MerchantPricingPage() {
                         <span className="mb-2 block font-medium text-slate-600">Harga Jual</span>
                         <input
                           type="number"
-                          min={row.product.providerPrice}
+                          min={row.product.defaultSellingPrice}
                           value={row.sellingPrice}
                           onChange={(e) => updateRow(row.productId, { sellingPrice: Number(e.target.value) })}
                           className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-emerald-400"
                         />
+                        <p className="mt-2 text-xs text-slate-400">
+                          Minimal mengikuti harga website: {rupiah(row.product.defaultSellingPrice)}
+                        </p>
                       </label>
 
                       <label className="text-sm">
-                        <span className="mb-2 block font-medium text-slate-600">Fee Type</span>
+                        <span className="mb-2 block font-medium text-slate-600">Tipe Potongan Platform</span>
                         <select
                           value={row.feeType}
                           onChange={(e) => updateRow(row.productId, { feeType: e.target.value as "PERCENT" | "FIXED" })}
@@ -191,7 +200,7 @@ export default function MerchantPricingPage() {
                       </label>
 
                       <label className="text-sm">
-                        <span className="mb-2 block font-medium text-slate-600">Fee Value</span>
+                        <span className="mb-2 block font-medium text-slate-600">Nilai Potongan Platform</span>
                         <input
                           type="number"
                           min={0}
@@ -199,6 +208,9 @@ export default function MerchantPricingPage() {
                           onChange={(e) => updateRow(row.productId, { feeValue: Number(e.target.value) })}
                           className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-emerald-400"
                         />
+                        <p className="mt-2 text-xs text-slate-400">
+                          Potongan ini diambil dari margin merchant, bukan biaya tambahan ke pembeli.
+                        </p>
                       </label>
                     </div>
 

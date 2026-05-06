@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/src/infra/db/prisma";
+import { findBrandByName, upsertBrandByName } from "@/lib/brand-store";
 
 export const dynamic = "force-dynamic";
 
@@ -45,6 +46,11 @@ interface ManualCategoryRow {
 }
 
 async function findBrandCategoryName(brand: string, client: Prisma.TransactionClient | typeof prisma = prisma) {
+  const brandRecord = await findBrandByName(brand, client);
+  if (brandRecord?.manualCategoryName) {
+    return brandRecord.manualCategoryName;
+  }
+
   const rows = await client.$queryRaw<Array<{ category: string | null }>>`
     SELECT mc.name AS category
     FROM brand_meta bm
@@ -178,6 +184,11 @@ export async function POST(request: Request) {
       }
 
       const manualCategory = await ensureManualCategory(category, tx);
+      const brandRecord = await upsertBrandByName(
+        brand,
+        { manualCategoryId: manualCategory.id },
+        tx
+      );
 
       const createdProduct = await tx.product.create({
         data: {
@@ -204,6 +215,9 @@ export async function POST(request: Request) {
 
       await tx.$executeRaw`
         UPDATE brand_meta SET manualCategoryId = ${manualCategory.id} WHERE brand = ${brand}
+      `;
+      await tx.$executeRaw`
+        UPDATE products SET brandId = ${brandRecord.id} WHERE id = ${createdProduct.id}
       `;
 
       return createdProduct;
@@ -290,7 +304,16 @@ export async function PUT(request: Request) {
         if (!category) {
           throw new Error("Brand belum memiliki kategori. Atur kategori brand terlebih dahulu di halaman Brand.");
         }
+        const manualCategory = await ensureManualCategory(category, tx);
+        const brandRecord = await upsertBrandByName(
+          effectiveBrand,
+          { manualCategoryId: manualCategory.id },
+          tx
+        );
         updateData.category = category;
+        await tx.$executeRaw`
+          UPDATE products SET brandId = ${brandRecord.id} WHERE id = ${id}
+        `;
       }
 
       const product = await tx.product.update({
@@ -300,6 +323,11 @@ export async function PUT(request: Request) {
 
       if (product.provider === "MANUAL") {
         const manualCategory = await ensureManualCategory(product.category, tx);
+        const brandRecord = await upsertBrandByName(
+          product.brand,
+          { manualCategoryId: manualCategory.id },
+          tx
+        );
         await tx.brandMeta.upsert({
           where: { brand: product.brand },
           create: { brand: product.brand },
@@ -308,6 +336,9 @@ export async function PUT(request: Request) {
 
         await tx.$executeRaw`
           UPDATE brand_meta SET manualCategoryId = ${manualCategory.id} WHERE brand = ${product.brand}
+        `;
+        await tx.$executeRaw`
+          UPDATE products SET brandId = ${brandRecord.id} WHERE id = ${product.id}
         `;
       }
 

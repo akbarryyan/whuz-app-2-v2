@@ -46,8 +46,9 @@ export async function GET(req: NextRequest) {
     success: true,
     data: rows.map((row) => {
       const providerPrice = Number(row.product.providerPrice);
+      const websiteSellingPrice = Number(row.product.sellingPrice);
       const merchantSellingPrice = row.sellingPrice !== null ? Number(row.sellingPrice) : Number(row.product.sellingPrice);
-      const margin = Math.max(0, merchantSellingPrice - providerPrice);
+      const margin = Math.max(0, merchantSellingPrice - websiteSellingPrice);
 
       return {
         id: row.id,
@@ -65,7 +66,7 @@ export async function GET(req: NextRequest) {
           provider: row.product.provider,
           providerCode: row.product.providerCode,
           providerPrice,
-          defaultSellingPrice: Number(row.product.sellingPrice),
+          defaultSellingPrice: websiteSellingPrice,
           defaultMargin: Number(row.product.margin),
         },
       };
@@ -93,7 +94,7 @@ export async function POST(req: NextRequest) {
 
   const product = await prisma.product.findUnique({
     where: { id: parsed.data.productId },
-    select: { id: true, providerPrice: true, isActive: true, stock: true },
+    select: { id: true, providerPrice: true, sellingPrice: true, isActive: true, stock: true },
   });
 
   if (!product || !product.isActive || !product.stock) {
@@ -101,9 +102,12 @@ export async function POST(req: NextRequest) {
   }
 
   const providerPrice = Number(product.providerPrice);
-  if (parsed.data.sellingPrice < providerPrice) {
-    return NextResponse.json({ success: false, error: "Harga jual tidak boleh di bawah harga provider" }, { status: 422 });
+  const websiteSellingPrice = Number(product.sellingPrice);
+  if (parsed.data.sellingPrice < websiteSellingPrice) {
+    return NextResponse.json({ success: false, error: "Harga jual merchant tidak boleh di bawah harga website" }, { status: 422 });
   }
+
+  const merchantMargin = Math.max(0, parsed.data.sellingPrice - websiteSellingPrice);
 
   const row = await prisma.sellerProduct.upsert({
     where: {
@@ -117,7 +121,7 @@ export async function POST(req: NextRequest) {
       productId: parsed.data.productId,
       sellingPrice: parsed.data.sellingPrice,
       commissionType: "FIXED",
-      commissionValue: parsed.data.sellingPrice - providerPrice,
+      commissionValue: merchantMargin,
       feeType: parsed.data.feeType,
       feeValue: parsed.data.feeValue,
       isActive: parsed.data.isActive ?? true,
@@ -125,7 +129,7 @@ export async function POST(req: NextRequest) {
     update: {
       sellingPrice: parsed.data.sellingPrice,
       commissionType: "FIXED",
-      commissionValue: parsed.data.sellingPrice - providerPrice,
+      commissionValue: merchantMargin,
       feeType: parsed.data.feeType,
       feeValue: parsed.data.feeValue,
       isActive: parsed.data.isActive ?? true,

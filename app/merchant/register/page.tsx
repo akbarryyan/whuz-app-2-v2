@@ -20,6 +20,11 @@ interface FormState {
   profileImageUrl: string;
 }
 
+interface PendingSellerState {
+  displayName: string;
+  slug: string;
+}
+
 function slugify(input: string) {
   return input
     .toLowerCase()
@@ -38,6 +43,7 @@ export default function MerchantRegisterPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [siteName, setSiteName] = useState("Website");
+  const [pendingSeller, setPendingSeller] = useState<PendingSellerState | null>(null);
   const [form, setForm] = useState<FormState>({
     displayName: "",
     slug: "",
@@ -65,6 +71,14 @@ export default function MerchantRegisterPage() {
 
         if (data?.seller?.isActive) {
           router.replace("/merchant/dashboard");
+          return;
+        }
+
+        if (data?.seller && !data.seller.isActive) {
+          setPendingSeller({
+            displayName: data.seller.displayName ?? "Merchant",
+            slug: data.seller.slug ?? "",
+          });
           return;
         }
 
@@ -117,8 +131,11 @@ export default function MerchantRegisterPage() {
         throw new Error(json.error || "Gagal membuat toko merchant");
       }
 
-      toast.success("Toko merchant berhasil dibuat.");
-      router.replace("/merchant/dashboard");
+      setPendingSeller({
+        displayName: json.data.displayName ?? payload.displayName,
+        slug: json.data.slug ?? payload.slug,
+      });
+      toast.success("Pengajuan merchant berhasil dikirim. Menunggu approval admin.");
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Gagal membuat toko merchant";
       toast.error(message);
@@ -167,76 +184,102 @@ export default function MerchantRegisterPage() {
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="mt-5 rounded-[28px] bg-white p-5 shadow-sm ring-1 ring-slate-100">
-            <div className="space-y-4">
-              <label className="block">
-                <span className="mb-2 block text-sm font-semibold text-slate-700">Nama Toko</span>
-                <input
-                  type="text"
-                  value={form.displayName}
-                  onChange={(e) => handleDisplayNameChange(e.target.value)}
-                  placeholder="Contoh: Akbar Topup Store"
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 placeholder:text-slate-300 outline-none transition focus:border-emerald-400 focus:bg-white"
-                />
-              </label>
-
-              <label className="block">
-                <span className="mb-2 block text-sm font-semibold text-slate-700">Slug Toko</span>
-                <input
-                  type="text"
-                  value={form.slug}
-                  onChange={(e) => setForm((prev) => ({ ...prev, slug: slugify(e.target.value) }))}
-                  placeholder="contoh: akbar-topup-store"
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 placeholder:text-slate-300 outline-none transition focus:border-emerald-400 focus:bg-white"
-                />
-                <p className="mt-2 text-xs text-slate-400">
-                  Link toko kamu akan menjadi `/seller/{slugify(form.slug || form.displayName || "nama-toko")}`
+          {pendingSeller ? (
+            <div className="mt-5 rounded-[28px] bg-white p-5 shadow-sm ring-1 ring-slate-100">
+              <div className="rounded-[28px] border border-amber-200 bg-amber-50 px-5 py-6">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-amber-600">
+                  Menunggu Approval
                 </p>
-              </label>
-
-              <label className="block">
-                <span className="mb-2 block text-sm font-semibold text-slate-700">Deskripsi Toko</span>
-                <textarea
-                  value={form.description}
-                  onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
-                  placeholder="Jelaskan singkat toko kamu, misalnya fokus game atau layanan unggulan."
-                  rows={4}
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 placeholder:text-slate-300 outline-none transition focus:border-emerald-400 focus:bg-white"
-                />
-              </label>
-
-              <label className="block">
-                <span className="mb-2 block text-sm font-semibold text-slate-700">URL Gambar Profile Merchant</span>
-                <input
-                  type="url"
-                  value={form.profileImageUrl}
-                  onChange={(e) => setForm((prev) => ({ ...prev, profileImageUrl: e.target.value }))}
-                  placeholder="https://example.com/profile-merchant.png"
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 placeholder:text-slate-300 outline-none transition focus:border-emerald-400 focus:bg-white"
-                />
-                <p className="mt-2 text-xs text-slate-400">
-                  Opsional. Gambar ini akan tampil di daftar merchant dan halaman storefront toko.
+                <h3 className="mt-3 text-xl font-bold text-slate-900">
+                  Pengajuan merchant kamu sudah masuk
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  Toko <span className="font-semibold text-slate-900">{pendingSeller.displayName}</span> sedang menunggu
+                  persetujuan admin. Setelah disetujui, akses dashboard merchant akan otomatis terbuka.
                 </p>
-              </label>
-            </div>
 
-            <div className="mt-6 rounded-3xl border border-emerald-100 bg-emerald-50 px-4 py-4">
-              <p className="text-sm font-semibold text-emerald-800">Setelah daftar, kamu bisa langsung:</p>
-              <ul className="mt-2 space-y-1 text-sm text-emerald-700">
-                <li>Atur harga jual sendiri</li>
-                <li>Pilih produk yang mau dijual</li>
-                <li>Lihat transaksi dan saldo merchant</li>
-              </ul>
+                <div className="mt-5 rounded-2xl bg-white/80 p-4 text-sm text-slate-700 ring-1 ring-amber-100">
+                  <p>
+                    <span className="font-semibold">Slug toko:</span> /seller/{pendingSeller.slug || "merchant-kamu"}
+                  </p>
+                  <p className="mt-2 text-xs text-slate-500">
+                    Kamu belum bisa menambah produk atau atur harga sampai akun merchant diaktifkan admin.
+                  </p>
+                </div>
+              </div>
             </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="mt-5 rounded-[28px] bg-white p-5 shadow-sm ring-1 ring-slate-100">
+              <div className="space-y-4">
+                <label className="block">
+                  <span className="mb-2 block text-sm font-semibold text-slate-700">Nama Toko</span>
+                  <input
+                    type="text"
+                    value={form.displayName}
+                    onChange={(e) => handleDisplayNameChange(e.target.value)}
+                    placeholder="Contoh: Akbar Topup Store"
+                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 placeholder:text-slate-300 outline-none transition focus:border-emerald-400 focus:bg-white"
+                  />
+                </label>
 
-            <button
-              type="submit"
-              disabled={submitting}
-              className="mt-6 w-full rounded-2xl bg-[#003D99] px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-blue-800 disabled:opacity-60"
-            >
-              {submitting ? "Membuat Toko..." : "Buka Toko Merchant"}
-            </button>
-          </form>
+                <label className="block">
+                  <span className="mb-2 block text-sm font-semibold text-slate-700">Slug Toko</span>
+                  <input
+                    type="text"
+                    value={form.slug}
+                    onChange={(e) => setForm((prev) => ({ ...prev, slug: slugify(e.target.value) }))}
+                    placeholder="contoh: akbar-topup-store"
+                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 placeholder:text-slate-300 outline-none transition focus:border-emerald-400 focus:bg-white"
+                  />
+                  <p className="mt-2 text-xs text-slate-400">
+                    Link toko kamu akan menjadi `/seller/{slugify(form.slug || form.displayName || "nama-toko")}`
+                  </p>
+                </label>
+
+                <label className="block">
+                  <span className="mb-2 block text-sm font-semibold text-slate-700">Deskripsi Toko</span>
+                  <textarea
+                    value={form.description}
+                    onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
+                    placeholder="Jelaskan singkat toko kamu, misalnya fokus game atau layanan unggulan."
+                    rows={4}
+                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 placeholder:text-slate-300 outline-none transition focus:border-emerald-400 focus:bg-white"
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="mb-2 block text-sm font-semibold text-slate-700">URL Gambar Profile Merchant</span>
+                  <input
+                    type="url"
+                    value={form.profileImageUrl}
+                    onChange={(e) => setForm((prev) => ({ ...prev, profileImageUrl: e.target.value }))}
+                    placeholder="https://example.com/profile-merchant.png"
+                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 placeholder:text-slate-300 outline-none transition focus:border-emerald-400 focus:bg-white"
+                  />
+                  <p className="mt-2 text-xs text-slate-400">
+                    Opsional. Gambar ini akan tampil di daftar merchant dan halaman storefront toko.
+                  </p>
+                </label>
+              </div>
+
+              <div className="mt-6 rounded-3xl border border-emerald-100 bg-emerald-50 px-4 py-4">
+                <p className="text-sm font-semibold text-emerald-800">Setelah approval admin, merchant bisa:</p>
+                <ul className="mt-2 space-y-1 text-sm text-emerald-700">
+                  <li>Atur harga jual sendiri</li>
+                  <li>Pilih produk yang mau dijual</li>
+                  <li>Lihat transaksi dan saldo merchant</li>
+                </ul>
+              </div>
+
+              <button
+                type="submit"
+                disabled={submitting}
+                className="mt-6 w-full rounded-2xl bg-[#003D99] px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-blue-800 disabled:opacity-60"
+              >
+                {submitting ? "Mengirim Pengajuan..." : "Ajukan Toko Merchant"}
+              </button>
+            </form>
+          )}
         </div>
 
         <BottomNavigation />

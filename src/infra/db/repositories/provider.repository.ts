@@ -1,6 +1,8 @@
 import { prisma } from "@/src/infra/db/prisma";
 import { ProviderType } from "@/src/core/domain/enums/provider.enum";
 import { Prisma } from "@prisma/client";
+import { normalizeBrandKey } from "@/lib/brand-utils";
+import { upsertBrandByName } from "@/lib/brand-store";
 
 export interface ProviderLogData {
   provider: string;
@@ -66,9 +68,49 @@ export class ProviderRepository {
         ? Number(providerSetting.defaultMargin) 
         : 0;
       const marginType = providerSetting?.marginType || "FIXED";
+      const [brandMetas, existingBrands, existingBrandRecords] = await Promise.all([
+        prisma.brandMeta.findMany({
+          select: { brand: true },
+        }),
+        prisma.product.findMany({
+          select: { brand: true },
+          distinct: ["brand"],
+        }),
+        prisma.$queryRaw<Array<{ id: string; name: string }>>`
+          SELECT id, name FROM brands
+        `,
+      ]);
+
+      const canonicalBrandMap = new Map<string, string>();
+      const brandIdMap = new Map<string, string>();
+      for (const brandRecord of existingBrandRecords) {
+        canonicalBrandMap.set(normalizeBrandKey(brandRecord.name), brandRecord.name);
+        brandIdMap.set(brandRecord.name, brandRecord.id);
+      }
+      for (const item of existingBrands) {
+        canonicalBrandMap.set(normalizeBrandKey(item.brand), item.brand);
+      }
+      for (const meta of brandMetas) {
+        canonicalBrandMap.set(normalizeBrandKey(meta.brand), meta.brand);
+      }
+
+      const canonicalProducts = products.map((product) => {
+        const canonicalBrand = canonicalBrandMap.get(normalizeBrandKey(product.brand)) || product.brand;
+        return {
+          ...product,
+          brand: canonicalBrand,
+        };
+      });
+
+      const uniqueCanonicalBrands = Array.from(new Set(canonicalProducts.map((item) => item.brand)));
+      for (const brand of uniqueCanonicalBrands) {
+        if (brandIdMap.has(brand)) continue;
+        const brandRecord = await upsertBrandByName(brand);
+        brandIdMap.set(brandRecord.name, brandRecord.id);
+      }
 
       const results = await Promise.allSettled(
-        products.map((product) => {
+        canonicalProducts.map((product) => {
           // Calculate margin and selling price
           const providerPrice = product.providerPrice;
           let margin = defaultMargin;
@@ -107,6 +149,8 @@ export class ProviderRepository {
             },
             update: {
               name: product.name,
+              category: product.category,
+              brand: product.brand,
               providerPrice: providerPrice,
               margin: margin,
               sellingPrice: sellingPrice,
@@ -114,14 +158,33 @@ export class ProviderRepository {
               description: product.description,
               lastSyncAt: new Date(),
             },
+          }).then(async (savedProduct) => {
+            const brandId = brandIdMap.get(product.brand);
+            if (brandId) {
+              await prisma.$executeRaw`
+                UPDATE products SET brandId = ${brandId} WHERE id = ${savedProduct.id}
+              `;
+            }
+            return savedProduct;
           });
         })
       );
 
+      const knownBrands = new Set(brandMetas.map((item) => item.brand));
+      const missingBrands = Array.from(
+        new Set(canonicalProducts.map((item) => item.brand).filter((brand) => !knownBrands.has(brand)))
+      );
+      if (missingBrands.length > 0) {
+        await prisma.brandMeta.createMany({
+          data: missingBrands.map((brand) => ({ brand })),
+          skipDuplicates: true,
+        });
+      }
+
       const succeeded = results.filter((r) => r.status === "fulfilled").length;
       const failed = results.filter((r) => r.status === "rejected").length;
 
-      return { succeeded, failed, total: products.length };
+      return { succeeded, failed, total: canonicalProducts.length };
     } catch (error) {
       console.error("Failed to sync products:", error);
       throw error;

@@ -83,8 +83,8 @@ export default function MerchantProductsPage() {
       setMarginDrafts((prev) => {
         const next: Record<string, number> = {};
         for (const row of nextRows) {
-          const savedMargin = row.sellerProduct?.sellingPrice !== null && row.sellerProduct?.sellingPrice !== undefined
-            ? Math.max(0, row.sellerProduct.sellingPrice - row.sellingPrice)
+          const savedMargin = row.sellerProduct
+            ? Math.max(0, row.sellerProduct.commissionValue)
             : 0;
           next[row.id] = prev[row.id] ?? savedMargin;
         }
@@ -163,7 +163,7 @@ export default function MerchantProductsPage() {
           productId: row.id,
           sellingPrice: row.sellingPrice + extraMargin,
           commissionType: "FIXED",
-          commissionValue: 0,
+          commissionValue: extraMargin,
           feeType: row.sellerProduct?.feeType ?? "FIXED",
           feeValue: row.sellerProduct?.feeValue ?? 0,
           isActive: true,

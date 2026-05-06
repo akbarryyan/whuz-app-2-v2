@@ -111,9 +111,9 @@ export async function GET() {
         mc.description,
         mc.sortOrder,
         mc.isActive,
-        COUNT(bm.id) AS brandCount
+        COUNT(b.id) AS brandCount
       FROM manual_categories mc
-      LEFT JOIN brand_meta bm ON bm.manualCategoryId = mc.id
+      LEFT JOIN brands b ON b.manualCategoryId = mc.id
       GROUP BY mc.id, mc.name, mc.slug, mc.description, mc.sortOrder, mc.isActive
       ORDER BY mc.sortOrder ASC, mc.name ASC
     `;
@@ -258,7 +258,7 @@ export async function DELETE(request: Request) {
       where: { provider: "MANUAL", category: category.name },
     });
     const usedBrandRows = await prisma.$queryRaw<Array<{ total: bigint }>>`
-      SELECT COUNT(*) AS total FROM brand_meta WHERE manualCategoryId = ${id}
+      SELECT COUNT(*) AS total FROM brands WHERE manualCategoryId = ${id}
     `;
     const usedBrands = Number(usedBrandRows[0]?.total ?? 0);
 

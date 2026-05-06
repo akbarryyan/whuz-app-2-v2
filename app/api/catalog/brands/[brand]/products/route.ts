@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/src/infra/db/prisma";
+import { slugifyBrand } from "@/lib/brand-utils";
 
 export const dynamic = "force-dynamic";
 
@@ -67,26 +68,39 @@ export async function GET(
   try {
     const { brand: brandSlug } = await params;
 
-    const allProducts = await prisma.product.findMany({
-      where: {
-        isActive: true,
-        stock: true,
-      },
-      select: {
-        brand: true,
-      },
-      distinct: ["brand"],
-    });
+    const [brands, brandMeta, allProducts] = await Promise.all([
+      prisma.$queryRaw<Array<{
+        id: string;
+        name: string;
+        slug: string;
+        imageUrl: string | null;
+        inputFields: unknown;
+      }>>`
+        SELECT id, name, slug, imageUrl, inputFields
+        FROM brands
+      `,
+      prisma.brandMeta.findMany({
+        select: { brand: true, imageUrl: true, inputFields: true },
+      }),
+      prisma.product.findMany({
+        where: {
+          isActive: true,
+          stock: true,
+        },
+        select: {
+          brand: true,
+        },
+        distinct: ["brand"],
+      }),
+    ]);
 
+    const matchedBrandRecord = brands.find((item) => item.slug === brandSlug) ?? null;
+    const matchedBrandMeta = brandMeta.find((item) => slugifyBrand(item.brand) === brandSlug) ?? null;
     const allBrands = allProducts.map((item) => item.brand);
 
-    const matchedBrand = allBrands.find((brand) => {
-      const slug = brand
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/(^-|-$)/g, "");
-      return slug === brandSlug;
-    });
+    const matchedBrand = matchedBrandRecord?.name
+      ?? matchedBrandMeta?.brand
+      ?? allBrands.find((brand) => slugifyBrand(brand) === brandSlug);
 
     if (!matchedBrand) {
       return NextResponse.json(
@@ -94,11 +108,6 @@ export async function GET(
         { status: 404 }
       );
     }
-
-    const brandMeta = await prisma.brandMeta.findUnique({
-      where: { brand: matchedBrand },
-      select: { imageUrl: true, inputFields: true },
-    });
 
     const products = await prisma.sellerProduct.findMany({
       where: {
@@ -173,13 +182,13 @@ export async function GET(
     );
     const resolvedInputFields =
       hasGameLikeProducts
-        ? ((brandMeta?.inputFields as InputFieldDef[] | null) ?? DEFAULT_GAME_INPUT_FIELDS)
+        ? (((matchedBrandRecord?.inputFields ?? matchedBrandMeta?.inputFields) as InputFieldDef[] | null) ?? DEFAULT_GAME_INPUT_FIELDS)
         : [buildSingleTargetField(matchedBrand, brandCategories)];
 
     return NextResponse.json({
       success: true,
       brand: matchedBrand,
-      imageUrl: brandMeta?.imageUrl ?? null,
+      imageUrl: matchedBrandRecord?.imageUrl ?? matchedBrandMeta?.imageUrl ?? null,
       inputFields: resolvedInputFields,
       hasMerchantProducts: productsData.length > 0,
       types: Object.keys(typeGroups),

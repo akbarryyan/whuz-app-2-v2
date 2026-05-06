@@ -49,6 +49,8 @@ export default function AdminBrandsPage() {
   const [brands, setBrands] = useState<BrandRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingBrand, setEditingBrand] = useState<string | null>(null);
+  const [editBrandName, setEditBrandName] = useState("");
+  const [editBrandCategory, setEditBrandCategory] = useState("");
   const [editUrl, setEditUrl] = useState("");
   const [saving, setSaving] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -101,28 +103,36 @@ export default function AdminBrandsPage() {
 
   const startEdit = (brand: BrandRow) => {
     setEditingBrand(brand.brand);
+    setEditBrandName(brand.brand);
+    setEditBrandCategory(brand.category);
     setEditUrl(brand.imageUrl ?? "");
   };
   const cancelEdit = () => {
     setEditingBrand(null);
+    setEditBrandName("");
+    setEditBrandCategory("");
     setEditUrl("");
   };
 
-  const saveImage = async (brandName: string) => {
+  const saveBrand = async (brandName: string) => {
+    const nextBrand = editBrandName.trim();
+    if (!nextBrand) {
+      toast.error("Nama brand wajib diisi.");
+      return;
+    }
     setSaving(true);
     try {
       const payload = {
         brand: brandName,
+        nextBrand,
+        category: editBrandCategory,
         imageUrl: editUrl.trim(),
       };
       const res = await fetch("/api/admin/brands", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       const data = await res.json();
       if (data.success) {
-        toast.success("Gambar brand berhasil disimpan.");
-        setBrands((prev) => prev.map((b) => b.brand === brandName ? {
-          ...b,
-          imageUrl: editUrl.trim() || null,
-        } : b));
+        await fetchBrands();
+        toast.success("Brand berhasil diperbarui.");
         cancelEdit();
       } else toast.error(data.error ?? "Gagal menyimpan.");
     } catch { toast.error("Gagal menyimpan."); } finally { setSaving(false); }
@@ -661,7 +671,7 @@ export default function AdminBrandsPage() {
                         {!isEditing ? (
                           <button onClick={() => startEdit(brand)}
                             className="px-2.5 py-1.5 bg-[#2563eb] text-white text-[11px] font-semibold rounded-lg hover:bg-blue-700 transition-colors whitespace-nowrap">
-                            Gambar
+                            Edit Brand
                           </button>
                         ) : (
                           <button onClick={cancelEdit}
@@ -692,12 +702,46 @@ export default function AdminBrandsPage() {
 
                     {isEditing && (
                       <div className="border-t border-slate-100 px-4 py-3 bg-slate-50">
-                        <label className="text-xs text-slate-500 font-medium block mb-1.5">URL Gambar (HTTPS)</label>
-                        <input type="url" placeholder="https://example.com/image.png" value={editUrl} onChange={(e) => setEditUrl(e.target.value)}
-                          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400"
-                          autoFocus onKeyDown={(e) => e.key === "Enter" && saveImage(brand.brand)} />
-                        <div className="mt-2 flex gap-2">
-                          <button onClick={() => saveImage(brand.brand)} disabled={saving}
+                        <div className="grid gap-3">
+                          <div>
+                            <label className="text-xs text-slate-500 font-medium block mb-1.5">Nama Brand</label>
+                            <input
+                              type="text"
+                              placeholder="Nama brand"
+                              value={editBrandName}
+                              onChange={(e) => setEditBrandName(e.target.value)}
+                              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400"
+                              autoFocus
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-slate-500 font-medium block mb-1.5">Kategori Brand</label>
+                            <select
+                              value={editBrandCategory}
+                              onChange={(e) => setEditBrandCategory(e.target.value)}
+                              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400"
+                            >
+                              {manualCategories.filter((category) => category.isActive).map((category) => (
+                                <option key={category.id} value={category.name}>
+                                  {category.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="text-xs text-slate-500 font-medium block mb-1.5">URL Gambar (HTTPS)</label>
+                            <input
+                              type="url"
+                              placeholder="https://example.com/image.png"
+                              value={editUrl}
+                              onChange={(e) => setEditUrl(e.target.value)}
+                              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400"
+                              onKeyDown={(e) => e.key === "Enter" && saveBrand(brand.brand)}
+                            />
+                          </div>
+                        </div>
+                        <div className="mt-3 flex gap-2">
+                          <button onClick={() => saveBrand(brand.brand)} disabled={saving}
                             className="px-4 py-2 bg-[#2563eb] text-white text-sm font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors">
                             {saving ? "..." : "Simpan"}
                           </button>
