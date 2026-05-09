@@ -2,6 +2,7 @@ import { IProviderPort } from "@/src/core/ports/provider.port";
 import { ProviderType, ProviderMode } from "@/src/core/domain/enums/provider.enum";
 import { DigiflazzAdapter } from "./digiflazz/digiflazz.adapter";
 import { VipResellerAdapter } from "./vip/vip.adapter";
+import { Agenh2hAdapter } from "./agenh2h/agenh2h.adapter";
 import { MockProviderAdapter } from "./mock/mock-provider.adapter";
 
 // ── Runtime mode override (admin toggle, survives hot-reload via globalThis) ──
@@ -22,7 +23,9 @@ export function setProviderModeOverride(provider: ProviderType, mode: ProviderMo
   import("@/lib/site-config").then(({ setSiteConfig, deleteSiteConfig }) => {
     const key = provider === ProviderType.DIGIFLAZZ
       ? "PROVIDER_DIGIFLAZZ_MODE"
-      : "PROVIDER_VIP_MODE";
+      : provider === ProviderType.VIP_RESELLER
+        ? "PROVIDER_VIP_MODE"
+        : "PROVIDER_AGENH2H_MODE";
     if (mode === null) {
       deleteSiteConfig(key).catch(() => {});
     } else {
@@ -54,6 +57,10 @@ export async function initProviderModesFromDB(): Promise<void> {
     if (vipVal === "real") g._providerModeOverride[ProviderType.VIP_RESELLER] = ProviderMode.REAL;
     else if (vipVal === "mock") g._providerModeOverride[ProviderType.VIP_RESELLER] = ProviderMode.MOCK;
 
+    const agenh2hVal = cfg["PROVIDER_AGENH2H_MODE"];
+    if (agenh2hVal === "real") g._providerModeOverride[ProviderType.AGENH2H] = ProviderMode.REAL;
+    else if (agenh2hVal === "mock") g._providerModeOverride[ProviderType.AGENH2H] = ProviderMode.MOCK;
+
     g._providerModeInitialized = true;
   } catch {
     // Non-fatal — fall through to env defaults
@@ -76,6 +83,8 @@ export class ProviderFactory {
         return new DigiflazzAdapter();
       case ProviderType.VIP_RESELLER:
         return new VipResellerAdapter();
+      case ProviderType.AGENH2H:
+        return new Agenh2hAdapter();
       default:
         throw new Error(`Unknown provider type: ${providerType}`);
     }
@@ -88,6 +97,7 @@ export class ProviderFactory {
     return [
       this.create(ProviderType.DIGIFLAZZ),
       this.create(ProviderType.VIP_RESELLER),
+      this.create(ProviderType.AGENH2H),
     ];
   }
 
@@ -105,6 +115,8 @@ export class ProviderFactory {
         ? "PROVIDER_DIGIFLAZZ_MODE"
         : providerType === ProviderType.VIP_RESELLER
           ? "PROVIDER_VIP_MODE"
+          : providerType === ProviderType.AGENH2H
+            ? "PROVIDER_AGENH2H_MODE"
           : "";
     const envMode = process.env[envKey];
     if (envMode?.toLowerCase() === ProviderMode.REAL) return ProviderMode.REAL;
@@ -120,6 +132,7 @@ export class ProviderFactory {
     return {
       [ProviderType.DIGIFLAZZ]: this.getProviderMode(ProviderType.DIGIFLAZZ),
       [ProviderType.VIP_RESELLER]: this.getProviderMode(ProviderType.VIP_RESELLER),
+      [ProviderType.AGENH2H]: this.getProviderMode(ProviderType.AGENH2H),
     };
   }
 }

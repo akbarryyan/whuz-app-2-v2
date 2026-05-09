@@ -34,6 +34,7 @@ export async function GET() {
       envDefaults: {
         PROVIDER_DIGIFLAZZ_MODE: process.env.PROVIDER_DIGIFLAZZ_MODE ?? "mock",
         PROVIDER_VIP_MODE: process.env.PROVIDER_VIP_MODE ?? "mock",
+        PROVIDER_AGENH2H_MODE: process.env.PROVIDER_AGENH2H_MODE ?? "mock",
         PROVIDER_PAKASIR_MODE: process.env.PROVIDER_PAKASIR_MODE ?? "sandbox",
         PAYMENT_GATEWAY_DEFAULT: process.env.PAYMENT_GATEWAY_DEFAULT ?? "MIDTRANS",
         MIDTRANS_MODE: process.env.MIDTRANS_MODE ?? "sandbox",
@@ -56,6 +57,8 @@ export async function GET() {
         VIP_API_KEY: process.env.VIP_API_KEY ?? "",
         VIP_SIGN: process.env.VIP_SIGN ?? "",
         VIP_BASE_URL: process.env.VIP_BASE_URL ?? "https://vip-reseller.co.id/api",
+        AGENH2H_API_KEY: process.env.AGENH2H_API_KEY ?? "",
+        AGENH2H_BASE_URL: process.env.AGENH2H_BASE_URL ?? "https://api.agenh2h.com/v1",
       },
     },
   });

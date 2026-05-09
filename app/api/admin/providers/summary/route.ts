@@ -21,7 +21,7 @@ export async function GET() {
   const settings = await prisma.providerSetting.findMany();
 
   // ── Last 10 logs per provider (latency average + success rate) ────────────
-  const PROVIDERS = ["DIGIFLAZZ", "VIP_RESELLER"];
+  const PROVIDERS = ["DIGIFLAZZ", "VIP_RESELLER", "AGENH2H"];
 
   const providerStats = await Promise.all(
     PROVIDERS.map(async (provider) => {

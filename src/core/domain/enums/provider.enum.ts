@@ -1,6 +1,7 @@
 export enum ProviderType {
   DIGIFLAZZ = "DIGIFLAZZ",
   VIP_RESELLER = "VIP_RESELLER",
+  AGENH2H = "AGENH2H",
   MANUAL = "MANUAL",
 }
 

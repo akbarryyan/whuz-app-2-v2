@@ -103,6 +103,7 @@ export default function ProvidersPage() {
       // Initialize providers with cached balance from database
       const digiflazzSetting = settings.find((s) => s.provider === "DIGIFLAZZ");
       const vipSetting = settings.find((s) => s.provider === "VIP_RESELLER");
+      const agenh2hSetting = settings.find((s) => s.provider === "AGENH2H");
 
       setProviders([
         {
@@ -133,6 +134,23 @@ export default function ProvidersPage() {
             latency: 0,
             lastCheck: vipSetting?.lastBalanceAt || new Date().toISOString(),
             message: vipSetting?.lastBalance ? "Cache dari database" : "Klik 'Cek Saldo' untuk update",
+          },
+        },
+        {
+          type: "AGENH2H",
+          mode: "real",
+          balance: {
+            amount: agenh2hSetting?.lastBalance || 0,
+            currency: "IDR",
+            lastUpdated: agenh2hSetting?.lastBalanceAt || new Date().toISOString(),
+          },
+          health: {
+            status: agenh2hSetting?.lastBalanceAt ? "ONLINE" : "UNKNOWN",
+            latency: 0,
+            lastCheck: agenh2hSetting?.lastBalanceAt || new Date().toISOString(),
+            message: agenh2hSetting?.lastBalanceAt
+              ? "Autentikasi AgenH2H pernah diverifikasi"
+              : "Klik 'Cek Saldo' untuk tes koneksi. Docs belum menyediakan endpoint saldo terpisah.",
           },
         },
       ]);

@@ -35,4 +35,5 @@ export enum WebhookSource {
   POPPAY = "POPPAY",
   DIGIFLAZZ = "DIGIFLAZZ",
   VIP_RESELLER = "VIP_RESELLER",
+  AGENH2H = "AGENH2H",
 }

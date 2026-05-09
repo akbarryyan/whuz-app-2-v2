@@ -150,6 +150,7 @@ export type PakasirMode = "sandbox" | "production";
 const ENV_KEY_MAP: Record<string, string> = {
   PROVIDER_DIGIFLAZZ_MODE: "PROVIDER_DIGIFLAZZ_MODE",
   PROVIDER_VIP_MODE: "PROVIDER_VIP_MODE",
+  PROVIDER_AGENH2H_MODE: "PROVIDER_AGENH2H_MODE",
   PROVIDER_PAKASIR_MODE: "PROVIDER_PAKASIR_MODE",
 };
 
@@ -190,6 +191,7 @@ export async function getPakasirMode(): Promise<PakasirMode> {
 export async function getAllProviderModes(): Promise<{
   DIGIFLAZZ: ProviderMode;
   VIP_RESELLER: ProviderMode;
+  AGENH2H: ProviderMode;
   PAKASIR: PakasirMode;
 }> {
   const cfg = await getAllSiteConfig();
@@ -215,6 +217,7 @@ export async function getAllProviderModes(): Promise<{
   return {
     DIGIFLAZZ: resolveProviderMode("PROVIDER_DIGIFLAZZ_MODE", "PROVIDER_DIGIFLAZZ_MODE"),
     VIP_RESELLER: resolveProviderMode("PROVIDER_VIP_MODE", "PROVIDER_VIP_MODE"),
+    AGENH2H: resolveProviderMode("PROVIDER_AGENH2H_MODE", "PROVIDER_AGENH2H_MODE"),
     PAKASIR: resolvePakasirMode(),
   };
 }

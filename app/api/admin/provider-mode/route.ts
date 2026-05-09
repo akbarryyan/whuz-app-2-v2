@@ -2,7 +2,7 @@
  * GET  /api/admin/provider-mode  — returns current mode for all providers
  * PATCH /api/admin/provider-mode  — toggle mode for a provider
  *
- * Body: { provider: "DIGIFLAZZ" | "VIP_RESELLER", mode: "MOCK" | "REAL" | null }
+ * Body: { provider: "DIGIFLAZZ" | "VIP_RESELLER" | "AGENH2H", mode: "MOCK" | "REAL" | null }
  * mode=null resets to env-var default.
  */
 
@@ -38,12 +38,17 @@ export async function GET() {
         override: overrides[ProviderType.VIP_RESELLER] ?? null,
         env: process.env.PROVIDER_VIP_MODE ?? "mock",
       },
+      AGENH2H: {
+        effective: modes[ProviderType.AGENH2H],
+        override: overrides[ProviderType.AGENH2H] ?? null,
+        env: process.env.PROVIDER_AGENH2H_MODE ?? "mock",
+      },
     },
   });
 }
 
 const PatchSchema = z.object({
-  provider: z.enum(["DIGIFLAZZ", "VIP_RESELLER"]),
+  provider: z.enum(["DIGIFLAZZ", "VIP_RESELLER", "AGENH2H"]),
   mode: z.enum(["MOCK", "REAL"]).nullable(),
 });
 
@@ -77,4 +82,3 @@ export async function PATCH(request: Request) {
     data: { provider, effective, override: mode },
   });
 }
-

@@ -13,12 +13,13 @@ interface SiteConfigData {
   modes: {
     DIGIFLAZZ: "mock" | "real";
     VIP_RESELLER: "mock" | "real";
+    AGENH2H: "mock" | "real";
     PAKASIR: "sandbox" | "production";
   };
   envDefaults: Record<string, string>;
 }
 
-type ProductProviderModeKey = "DIGIFLAZZ" | "VIP_RESELLER";
+type ProductProviderModeKey = "DIGIFLAZZ" | "VIP_RESELLER" | "AGENH2H";
 
 interface ProviderDef {
   key: string;               // site-config key in DB
@@ -57,6 +58,18 @@ const PROVIDERS: ProviderDef[] = [
     icon: "🏆",
     modeKey: "VIP_RESELLER",
     envKey: "PROVIDER_VIP_MODE",
+    offValue: "mock",
+    onValue: "real",
+    offLabel: "MOCK",
+    onLabel: "REAL",
+  },
+  {
+    key: "PROVIDER_AGENH2H_MODE",
+    label: "AgenH2H",
+    description: "Provider tambahan dengan order + webhook callback",
+    icon: "🔗",
+    modeKey: "AGENH2H",
+    envKey: "PROVIDER_AGENH2H_MODE",
     offValue: "mock",
     onValue: "real",
     offLabel: "MOCK",
@@ -120,8 +133,11 @@ export default function SettingsPage() {
   const [vipApiKey, setVipApiKey] = useState("");
   const [vipSign, setVipSign] = useState("");
   const [vipBaseUrl, setVipBaseUrl] = useState("https://vip-reseller.co.id/api");
+  const [agenh2hApiKey, setAgenh2hApiKey] = useState("");
+  const [agenh2hBaseUrl, setAgenh2hBaseUrl] = useState("https://api.agenh2h.com/v1");
   const [showVipApiKey, setShowVipApiKey] = useState(false);
   const [showVipSign, setShowVipSign] = useState(false);
+  const [showAgenh2hApiKey, setShowAgenh2hApiKey] = useState(false);
 
   const toast = useToast();
 
@@ -184,6 +200,8 @@ export default function SettingsPage() {
         setVipApiKey(raw.VIP_API_KEY ?? envDefaults.VIP_API_KEY ?? "");
         setVipSign(raw.VIP_SIGN ?? envDefaults.VIP_SIGN ?? "");
         setVipBaseUrl(raw.VIP_BASE_URL ?? envDefaults.VIP_BASE_URL ?? "https://vip-reseller.co.id/api");
+        setAgenh2hApiKey(raw.AGENH2H_API_KEY ?? envDefaults.AGENH2H_API_KEY ?? "");
+        setAgenh2hBaseUrl(raw.AGENH2H_BASE_URL ?? envDefaults.AGENH2H_BASE_URL ?? "https://api.agenh2h.com/v1");
       } else {
         toast.error("Gagal memuat konfigurasi");
       }
@@ -345,6 +363,8 @@ export default function SettingsPage() {
         { key: "VIP_API_KEY", value: vipApiKey },
         { key: "VIP_SIGN", value: vipSign },
         { key: "VIP_BASE_URL", value: vipBaseUrl },
+        { key: "AGENH2H_API_KEY", value: agenh2hApiKey },
+        { key: "AGENH2H_BASE_URL", value: agenh2hBaseUrl },
       ],
       "Kredensial provider berhasil disimpan",
       "provider_credentials"
@@ -1311,6 +1331,52 @@ export default function SettingsPage() {
                 </div>
               </div>
 
+              <div className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
+                <h3 className="text-sm font-bold text-slate-800">AgenH2H</h3>
+                <div className="mt-4 space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">API Key</label>
+                    <div className="relative">
+                      <input
+                        type={showAgenh2hApiKey ? "text" : "password"}
+                        value={agenh2hApiKey}
+                        onChange={(e) => setAgenh2hApiKey(e.target.value)}
+                        placeholder="api key AgenH2H"
+                        className="w-full px-3 py-2.5 pr-14 text-sm border border-slate-200 rounded-xl outline-none focus:border-blue-400 font-mono text-xs"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowAgenh2hApiKey((v) => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-medium text-slate-400 hover:text-slate-600 transition"
+                        tabIndex={-1}
+                      >
+                        {showAgenh2hApiKey ? "Hide" : "Show"}
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Base URL</label>
+                    <input
+                      type="text"
+                      value={agenh2hBaseUrl}
+                      onChange={(e) => setAgenh2hBaseUrl(e.target.value)}
+                      placeholder="https://api.agenh2h.com/v1"
+                      className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl outline-none focus:border-blue-400 font-mono text-xs"
+                    />
+                  </div>
+                  <div className="rounded-xl border border-blue-100 bg-blue-50 px-3 py-3 text-[11px] leading-5 text-blue-700">
+                    <p>
+                      <strong>Webhook callback AgenH2H:</strong>{" "}
+                      <code className="rounded bg-blue-100 px-1 py-0.5">/api/webhook/agenh2h</code>
+                    </p>
+                    <p className="mt-1">
+                      Signature webhook diverifikasi memakai pola <code className="rounded bg-blue-100 px-1 py-0.5">md5(api_key + ref_id)</code>,
+                      jadi API key yang disimpan di sini juga dipakai untuk verifikasi callback.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-2 border-t border-slate-100">
                 <div className="space-y-1">
                   <div className="flex items-center gap-1.5">
@@ -1323,6 +1389,12 @@ export default function SettingsPage() {
                     <span className={`w-2 h-2 rounded-full flex-shrink-0 ${(pakasirSlug && pakasirApiKey) || (pakasirSandboxSlug && pakasirSandboxApiKey) ? "bg-green-400" : "bg-amber-400"}`} />
                     <span className={`text-[10px] font-medium ${(pakasirSlug && pakasirApiKey) || (pakasirSandboxSlug && pakasirSandboxApiKey) ? "text-green-600" : "text-amber-600"}`}>
                       Pakasir {(pakasirSlug && pakasirApiKey) || (pakasirSandboxSlug && pakasirSandboxApiKey) ? "sudah dikonfigurasi" : "belum lengkap"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${agenh2hApiKey ? "bg-green-400" : "bg-amber-400"}`} />
+                    <span className={`text-[10px] font-medium ${agenh2hApiKey ? "text-green-600" : "text-amber-600"}`}>
+                      AgenH2H {agenh2hApiKey ? "sudah dikonfigurasi" : "belum lengkap"}
                     </span>
                   </div>
                 </div>
