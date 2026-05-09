@@ -63,6 +63,7 @@ const NAV_ITEMS = [
 export default function MerchantSidebar({ isOpen, onClose }: MerchantSidebarProps) {
   const pathname = usePathname();
   const [siteName, setSiteName] = useState("Website");
+  const [desktopOpen, setDesktopOpen] = useState(false);
 
   useEffect(() => {
     fetch("/api/site-branding")
@@ -73,9 +74,18 @@ export default function MerchantSidebar({ isOpen, onClose }: MerchantSidebarProp
       .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    const updateDesktopState = () => setDesktopOpen(window.innerWidth >= 1024);
+
+    updateDesktopState();
+    window.addEventListener("resize", updateDesktopState);
+
+    return () => window.removeEventListener("resize", updateDesktopState);
+  }, []);
+
   return (
     <>
-      {isOpen && (
+      {isOpen && !desktopOpen && (
         <button
           type="button"
           className="fixed inset-0 z-40 bg-black/50 lg:hidden"
@@ -86,7 +96,7 @@ export default function MerchantSidebar({ isOpen, onClose }: MerchantSidebarProp
 
       <aside
         className={`fixed left-0 top-0 z-50 flex h-full w-64 transform flex-col bg-white p-6 shadow-xl transition-transform duration-300 ease-in-out ${
-          isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+          isOpen || desktopOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         <div className="flex items-center justify-between">
@@ -122,7 +132,9 @@ export default function MerchantSidebar({ isOpen, onClose }: MerchantSidebarProp
                 <Link
                   key={item.href}
                   href={item.href}
-                  onClick={onClose}
+                  onClick={() => {
+                    if (!desktopOpen) onClose();
+                  }}
                   className={`flex items-center gap-3 rounded-2xl px-3 py-2 transition ${
                     active ? "bg-emerald-50 text-emerald-600" : "text-slate-500 hover:bg-slate-100"
                   }`}

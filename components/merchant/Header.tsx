@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 interface MerchantHeaderProps {
   title: string;
   subtitle: string;
@@ -7,6 +9,7 @@ interface MerchantHeaderProps {
 }
 
 export default function MerchantHeader({ title, subtitle, onMenuClick }: MerchantHeaderProps) {
+  const [desktopOpen, setDesktopOpen] = useState(false);
   const formattedDate = new Intl.DateTimeFormat("id-ID", {
     day: "numeric",
     month: "long",
@@ -14,20 +17,31 @@ export default function MerchantHeader({ title, subtitle, onMenuClick }: Merchan
     timeZone: "Asia/Jakarta",
   }).format(new Date());
 
+  useEffect(() => {
+    const updateDesktopState = () => setDesktopOpen(window.innerWidth >= 1024);
+
+    updateDesktopState();
+    window.addEventListener("resize", updateDesktopState);
+
+    return () => window.removeEventListener("resize", updateDesktopState);
+  }, []);
+
   return (
     <header className="flex flex-col gap-3 rounded-2xl bg-white px-4 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:rounded-3xl sm:px-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={onMenuClick}
-            className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-500 text-white transition hover:bg-emerald-600 lg:hidden"
-            aria-label="Open menu"
-          >
-            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </button>
+          {!desktopOpen && (
+            <button
+              type="button"
+              onClick={onMenuClick}
+              className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-500 text-white transition hover:bg-emerald-600"
+              aria-label="Open menu"
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+          )}
           <div>
             <h1 className="text-base font-semibold sm:text-lg">{title}</h1>
             <p suppressHydrationWarning className="text-xs text-slate-400">{formattedDate}</p>

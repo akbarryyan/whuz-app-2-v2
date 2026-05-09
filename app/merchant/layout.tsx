@@ -12,7 +12,17 @@ export default function MerchantLayout({ children }: { children: React.ReactNode
   const pathname = usePathname();
   const router = useRouter();
   const [auth, setAuth] = useState<AuthState>({ loading: true, allowed: false });
+  const [desktopOpen, setDesktopOpen] = useState(false);
   const isRegisterPage = pathname === "/merchant/register";
+
+  useEffect(() => {
+    const updateDesktopState = () => setDesktopOpen(window.innerWidth >= 1024);
+
+    updateDesktopState();
+    window.addEventListener("resize", updateDesktopState);
+
+    return () => window.removeEventListener("resize", updateDesktopState);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -61,5 +71,5 @@ export default function MerchantLayout({ children }: { children: React.ReactNode
     return <>{children}</>;
   }
 
-  return <div className="lg:pl-64">{children}</div>;
+  return <div className={desktopOpen ? "pl-64" : ""}>{children}</div>;
 }
