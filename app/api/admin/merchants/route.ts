@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { getSession } from "@/lib/session";
 import { prisma } from "@/src/infra/db/prisma";
 
@@ -72,10 +73,29 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    const feeRows = merchants.length
+      ? await prisma.$queryRaw<
+          Array<{ id: string; platformFeeType: string | null; platformFeeValue: number | string | null }>
+        >`SELECT id, platformFeeType, platformFeeValue FROM seller_profiles WHERE id IN (${Prisma.join(
+          merchants.map((merchant) => merchant.id)
+        )})`
+      : [];
+    const feeMap = new Map(
+      feeRows.map((row) => [
+        row.id,
+        {
+          platformFeeType: row.platformFeeType === "PERCENT" ? "PERCENT" : "FIXED",
+          platformFeeValue: Number(row.platformFeeValue ?? 0),
+        },
+      ])
+    );
+
     return NextResponse.json({
       success: true,
       data: merchants.map((merchant) => ({
         ...merchant,
+        platformFeeType: feeMap.get(merchant.id)?.platformFeeType ?? "FIXED",
+        platformFeeValue: feeMap.get(merchant.id)?.platformFeeValue ?? 0,
         user: {
           ...merchant.user,
           walletBalance: merchant.user.wallet ? Number(merchant.user.wallet.balance) : 0,

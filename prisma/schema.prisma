@@ -262,6 +262,8 @@ model SellerProfile {
   displayName String   @db.VarChar(120)
   description String?  @db.Text
   profileImageUrl String? @db.Text
+  platformFeeType  String   @default("FIXED") @db.VarChar(20) // PERCENT | FIXED
+  platformFeeValue Decimal  @default(0) @db.Decimal(15, 2)
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

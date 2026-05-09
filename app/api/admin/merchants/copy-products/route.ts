@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { getSession } from "@/lib/session";
 import { prisma } from "@/src/infra/db/prisma";
@@ -77,6 +78,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Merchant target tidak ditemukan" }, { status: 404 });
     }
 
+    const targetFeeRows = await prisma.$queryRaw<
+      Array<{ id: string; platformFeeType: string | null; platformFeeValue: number | string | null }>
+    >`SELECT id, platformFeeType, platformFeeValue FROM seller_profiles WHERE id IN (${Prisma.join(
+      targetMerchants.map((merchant) => merchant.id)
+    )})`;
+    const targetFeeMap = new Map(
+      targetFeeRows.map((row) => [
+        row.id,
+        {
+          platformFeeType: (row.platformFeeType === "PERCENT" ? "PERCENT" : "FIXED") as "PERCENT" | "FIXED",
+          platformFeeValue: Number(row.platformFeeValue ?? 0),
+        },
+      ])
+    );
+
     const sourceProducts = await prisma.sellerProduct.findMany({
       where: {
         sellerId: sourceMerchant.userId,
@@ -120,6 +136,8 @@ export async function POST(request: NextRequest) {
       sellerId: string;
       productId: string;
       sellingPrice: number;
+      feeType: "PERCENT" | "FIXED";
+      feeValue: number;
       isActive: boolean;
     }> = [];
 
@@ -127,10 +145,13 @@ export async function POST(request: NextRequest) {
       for (const item of sourceProducts) {
         const key = `${target.userId}:${item.productId}`;
         if (existingKeys.has(key)) continue;
+        const feeDefaults = targetFeeMap.get(target.id);
         payload.push({
           sellerId: target.userId,
           productId: item.productId,
           sellingPrice: Number(item.product.sellingPrice),
+          feeType: feeDefaults?.platformFeeType ?? "FIXED",
+          feeValue: feeDefaults?.platformFeeValue ?? 0,
           isActive: true,
         });
       }

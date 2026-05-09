@@ -22,7 +22,6 @@ interface PricingRow {
     category: string;
     provider: string;
     providerCode: string;
-    providerPrice: number;
     defaultSellingPrice: number;
     defaultMargin: number;
   };
@@ -78,8 +77,6 @@ export default function MerchantPricingPage() {
         body: JSON.stringify({
           productId: row.productId,
           sellingPrice: row.sellingPrice,
-          feeType: row.feeType,
-          feeValue: row.feeValue,
           isActive: row.isActive,
         }),
       });
@@ -103,7 +100,7 @@ export default function MerchantPricingPage() {
         <div className="flex flex-col gap-4 sm:gap-6">
           <MerchantHeader
             title="Pricing Merchant"
-            subtitle="Atur harga jual merchant di atas harga website, lalu tentukan potongan platform dari margin merchant bila diperlukan."
+            subtitle="Atur harga jual merchant di atas harga website. Potongan platform ditentukan oleh admin dan dihitung otomatis dari margin merchant."
             onMenuClick={() => setSidebarOpen(true)}
           />
 
@@ -111,7 +108,7 @@ export default function MerchantPricingPage() {
             <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-sm font-semibold text-slate-800">Katalog Pricing Merchant</p>
-                <p className="text-xs text-slate-400">Cari produk lalu atur harga jual merchant dan potongan platform dari margin merchant.</p>
+                <p className="text-xs text-slate-400">Cari produk lalu atur harga jual merchant. Potongan platform hanya ditampilkan sebagai informasi.</p>
               </div>
               <div className="flex flex-col gap-2 sm:w-[320px]">
                 <input
@@ -150,11 +147,14 @@ export default function MerchantPricingPage() {
                           <span className="rounded-full bg-blue-50 px-3 py-1 font-medium text-blue-700">
                             Harga website: {rupiah(row.product.defaultSellingPrice)}
                           </span>
-                          <span className="rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-600">
-                            Provider: {rupiah(row.product.providerPrice)}
-                          </span>
                           <span className="rounded-full bg-amber-50 px-3 py-1 font-medium text-amber-700">
                             Margin merchant: {rupiah(row.margin)}
+                          </span>
+                          <span className="rounded-full bg-violet-50 px-3 py-1 font-medium text-violet-700">
+                            Potongan platform: {row.feeType === "PERCENT" ? `${row.feeValue}%` : rupiah(row.feeValue)}
+                          </span>
+                          <span className="rounded-full bg-emerald-50 px-3 py-1 font-medium text-emerald-700">
+                            Saldo bersih merchant: {rupiah(Math.max(0, row.margin - (row.feeType === "FIXED" ? row.feeValue : Math.floor((row.margin * row.feeValue) / 100))))}
                           </span>
                           <span className="rounded-full bg-emerald-50 px-3 py-1 font-medium text-emerald-700">
                             Harga jual merchant: {rupiah(row.sellingPrice)}
@@ -172,7 +172,7 @@ export default function MerchantPricingPage() {
                       </label>
                     </div>
 
-                    <div className="mt-5 grid gap-4 md:grid-cols-3">
+                    <div className="mt-5 grid gap-4 md:grid-cols-2">
                       <label className="text-sm">
                         <span className="mb-2 block font-medium text-slate-600">Harga Jual</span>
                         <input
@@ -187,31 +187,15 @@ export default function MerchantPricingPage() {
                         </p>
                       </label>
 
-                      <label className="text-sm">
-                        <span className="mb-2 block font-medium text-slate-600">Tipe Potongan Platform</span>
-                        <select
-                          value={row.feeType}
-                          onChange={(e) => updateRow(row.productId, { feeType: e.target.value as "PERCENT" | "FIXED" })}
-                          className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-emerald-400"
-                        >
-                          <option value="PERCENT">Persen</option>
-                          <option value="FIXED">Nominal</option>
-                        </select>
-                      </label>
-
-                      <label className="text-sm">
-                        <span className="mb-2 block font-medium text-slate-600">Nilai Potongan Platform</span>
-                        <input
-                          type="number"
-                          min={0}
-                          value={row.feeValue}
-                          onChange={(e) => updateRow(row.productId, { feeValue: Number(e.target.value) })}
-                          className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-emerald-400"
-                        />
-                        <p className="mt-2 text-xs text-slate-400">
-                          Potongan ini diambil dari margin merchant, bukan biaya tambahan ke pembeli.
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+                        <span className="mb-2 block font-medium text-slate-600">Potongan Platform</span>
+                        <p className="text-slate-800">
+                          {row.feeType === "PERCENT" ? `${row.feeValue}% dari margin merchant` : rupiah(row.feeValue)}
                         </p>
-                      </label>
+                        <p className="mt-2 text-xs text-slate-400">
+                          Nilai ini ditentukan oleh admin/platform dan dipotong dari margin merchant, bukan biaya tambahan ke pembeli.
+                        </p>
+                      </div>
                     </div>
 
                     <div className="mt-5 flex justify-end">

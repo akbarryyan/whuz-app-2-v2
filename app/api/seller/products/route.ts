@@ -10,8 +10,6 @@ const SellerProductSchema = z.object({
   sellingPrice: z.number().positive().optional(),
   commissionType: z.enum(["PERCENT", "FIXED"]).default("PERCENT"),
   commissionValue: z.number().min(0).max(1000000).default(0),
-  feeType: z.enum(["PERCENT", "FIXED"]).default("PERCENT"),
-  feeValue: z.number().min(0).max(1000000).default(0),
   isActive: z.boolean().optional(),
 });
 
@@ -151,6 +149,26 @@ export async function POST(req: NextRequest) {
   }
 
   const merchantMargin = Math.max(0, merchantSellingPrice - websiteSellingPrice);
+  const [sellerProfile] = await prisma.$queryRaw<
+    Array<{ platformFeeType: string | null; platformFeeValue: number | string | null }>
+  >`
+    SELECT platformFeeType, platformFeeValue
+    FROM seller_profiles
+    WHERE userId = ${seller.session.userId!}
+    LIMIT 1
+  `;
+  const existing = await prisma.sellerProduct.findUnique({
+    where: {
+      sellerId_productId: {
+        sellerId: seller.session.userId!,
+        productId: parsed.data.productId,
+      },
+    },
+    select: {
+      feeType: true,
+      feeValue: true,
+    },
+  });
 
   const sellerProduct = await prisma.sellerProduct.upsert({
     where: {
@@ -165,16 +183,16 @@ export async function POST(req: NextRequest) {
       sellingPrice: merchantSellingPrice,
       commissionType: "FIXED",
       commissionValue: merchantMargin,
-      feeType: parsed.data.feeType,
-      feeValue: parsed.data.feeValue,
+      feeType: sellerProfile?.platformFeeType === "PERCENT" ? "PERCENT" : existing?.feeType ?? "FIXED",
+      feeValue: sellerProfile?.platformFeeValue !== undefined ? Number(sellerProfile.platformFeeValue) : existing?.feeValue ?? 0,
       isActive: parsed.data.isActive ?? true,
     },
     update: {
       sellingPrice: merchantSellingPrice,
       commissionType: "FIXED",
       commissionValue: merchantMargin,
-      feeType: parsed.data.feeType,
-      feeValue: parsed.data.feeValue,
+      feeType: sellerProfile?.platformFeeType === "PERCENT" ? "PERCENT" : existing?.feeType ?? "FIXED",
+      feeValue: sellerProfile?.platformFeeValue !== undefined ? Number(sellerProfile.platformFeeValue) : existing?.feeValue ?? 0,
       isActive: parsed.data.isActive ?? true,
     },
   });

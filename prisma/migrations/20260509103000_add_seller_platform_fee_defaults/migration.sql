@@ -1,0 +1,3 @@
+ALTER TABLE `seller_profiles`
+  ADD COLUMN `platformFeeType` VARCHAR(20) NOT NULL DEFAULT 'FIXED',
+  ADD COLUMN `platformFeeValue` DECIMAL(15,2) NOT NULL DEFAULT 0;

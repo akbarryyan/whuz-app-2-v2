@@ -8,8 +8,6 @@ export const dynamic = "force-dynamic";
 const PricingSchema = z.object({
   productId: z.string().min(1),
   sellingPrice: z.number().positive(),
-  feeType: z.enum(["PERCENT", "FIXED"]).default("PERCENT"),
-  feeValue: z.number().min(0).max(1000000).default(0),
   isActive: z.boolean().optional(),
 });
 
@@ -65,7 +63,6 @@ export async function GET(req: NextRequest) {
           category: row.product.category,
           provider: row.product.provider,
           providerCode: row.product.providerCode,
-          providerPrice,
           defaultSellingPrice: websiteSellingPrice,
           defaultMargin: Number(row.product.margin),
         },
@@ -101,13 +98,33 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: "Produk tidak tersedia" }, { status: 404 });
   }
 
-  const providerPrice = Number(product.providerPrice);
   const websiteSellingPrice = Number(product.sellingPrice);
   if (parsed.data.sellingPrice < websiteSellingPrice) {
     return NextResponse.json({ success: false, error: "Harga jual merchant tidak boleh di bawah harga website" }, { status: 422 });
   }
 
+  const [sellerProfile] = await prisma.$queryRaw<
+    Array<{ platformFeeType: string | null; platformFeeValue: number | string | null }>
+  >`
+    SELECT platformFeeType, platformFeeValue
+    FROM seller_profiles
+    WHERE userId = ${merchant.session.userId!}
+    LIMIT 1
+  `;
+
   const merchantMargin = Math.max(0, parsed.data.sellingPrice - websiteSellingPrice);
+  const existing = await prisma.sellerProduct.findUnique({
+    where: {
+      sellerId_productId: {
+        sellerId: merchant.session.userId!,
+        productId: parsed.data.productId,
+      },
+    },
+    select: {
+      feeType: true,
+      feeValue: true,
+    },
+  });
 
   const row = await prisma.sellerProduct.upsert({
     where: {
@@ -122,16 +139,16 @@ export async function POST(req: NextRequest) {
       sellingPrice: parsed.data.sellingPrice,
       commissionType: "FIXED",
       commissionValue: merchantMargin,
-      feeType: parsed.data.feeType,
-      feeValue: parsed.data.feeValue,
+      feeType: sellerProfile?.platformFeeType === "PERCENT" ? "PERCENT" : existing?.feeType ?? "FIXED",
+      feeValue: sellerProfile?.platformFeeValue !== undefined ? Number(sellerProfile.platformFeeValue) : existing?.feeValue ?? 0,
       isActive: parsed.data.isActive ?? true,
     },
     update: {
       sellingPrice: parsed.data.sellingPrice,
       commissionType: "FIXED",
       commissionValue: merchantMargin,
-      feeType: parsed.data.feeType,
-      feeValue: parsed.data.feeValue,
+      feeType: sellerProfile?.platformFeeType === "PERCENT" ? "PERCENT" : existing?.feeType ?? "FIXED",
+      feeValue: sellerProfile?.platformFeeValue !== undefined ? Number(sellerProfile.platformFeeValue) : existing?.feeValue ?? 0,
       isActive: parsed.data.isActive ?? true,
     },
     include: { product: true },

@@ -164,8 +164,6 @@ export default function MerchantProductsPage() {
           sellingPrice: row.sellingPrice + extraMargin,
           commissionType: "FIXED",
           commissionValue: extraMargin,
-          feeType: row.sellerProduct?.feeType ?? "FIXED",
-          feeValue: row.sellerProduct?.feeValue ?? 0,
           isActive: true,
         }),
       });

@@ -13,6 +13,8 @@ interface Merchant {
   displayName: string;
   description: string | null;
   profileImageUrl: string | null;
+  platformFeeType: "PERCENT" | "FIXED";
+  platformFeeValue: number;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -43,6 +45,10 @@ function formatRp(value: number) {
   return "Rp " + value.toLocaleString("id-ID");
 }
 
+function formatPlatformFee(type: "PERCENT" | "FIXED", value: number) {
+  return type === "PERCENT" ? `${value}% dari margin merchant` : `${formatRp(value)} per transaksi`;
+}
+
 export default function AdminMerchantsPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -56,6 +62,10 @@ export default function AdminMerchantsPage() {
   const [bulkLoading, setBulkLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [detailMerchant, setDetailMerchant] = useState<Merchant | null>(null);
+  const [feeTypeDraft, setFeeTypeDraft] = useState<"PERCENT" | "FIXED">("FIXED");
+  const [feeValueDraft, setFeeValueDraft] = useState("0");
+  const [applyFeeToProducts, setApplyFeeToProducts] = useState(false);
+  const [savingFee, setSavingFee] = useState(false);
   const [showCopyProductsModal, setShowCopyProductsModal] = useState(false);
   const [copySourceMerchantId, setCopySourceMerchantId] = useState("");
   const [copyingProducts, setCopyingProducts] = useState(false);
@@ -81,6 +91,13 @@ export default function AdminMerchantsPage() {
   useEffect(() => {
     loadMerchants();
   }, [loadMerchants]);
+
+  useEffect(() => {
+    if (!detailMerchant) return;
+    setFeeTypeDraft(detailMerchant.platformFeeType);
+    setFeeValueDraft(String(detailMerchant.platformFeeValue));
+    setApplyFeeToProducts(false);
+  }, [detailMerchant]);
 
   async function toggleMerchant(merchant: Merchant) {
     setTogglingId(merchant.id);
@@ -217,6 +234,66 @@ export default function AdminMerchantsPage() {
       toast.success("Link storefront berhasil disalin.");
     } catch {
       toast.error("Gagal menyalin link storefront.");
+    }
+  }
+
+  async function savePlatformFeeSettings() {
+    if (!detailMerchant) return;
+
+    const numericValue = Number(feeValueDraft);
+    if (!Number.isFinite(numericValue) || numericValue < 0) {
+      toast.error("Nilai fee platform harus berupa angka 0 atau lebih.");
+      return;
+    }
+
+    setSavingFee(true);
+    try {
+      const res = await fetch(`/api/admin/merchants/${detailMerchant.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          platformFeeType: feeTypeDraft,
+          platformFeeValue: numericValue,
+          applyFeeToProducts,
+        }),
+      });
+      const data = await res.json();
+
+      if (!data.success) {
+        toast.error(data.error ?? "Gagal menyimpan fee platform merchant");
+        return;
+      }
+
+      setMerchants((prev) =>
+        prev.map((merchant) =>
+          merchant.id === detailMerchant.id
+            ? {
+                ...merchant,
+                platformFeeType: data.data.platformFeeType,
+                platformFeeValue: data.data.platformFeeValue,
+              }
+            : merchant
+        )
+      );
+      setDetailMerchant((prev) =>
+        prev && prev.id === detailMerchant.id
+          ? {
+              ...prev,
+              platformFeeType: data.data.platformFeeType,
+              platformFeeValue: data.data.platformFeeValue,
+            }
+          : prev
+      );
+      setApplyFeeToProducts(false);
+      toast.success(
+        applyFeeToProducts
+          ? "Fee platform berhasil disimpan dan diterapkan ke produk merchant."
+          : "Fee platform merchant berhasil disimpan."
+      );
+    } catch {
+      toast.error("Gagal menyimpan fee platform merchant");
+    } finally {
+      setSavingFee(false);
     }
   }
 
@@ -494,6 +571,12 @@ export default function AdminMerchantsPage() {
                             {formatRp(merchant.user.walletBalance)}
                           </span>
                         </p>
+                        <p className="mt-1 text-[11px] text-slate-500">
+                          Fee platform:{" "}
+                          <span className="font-semibold text-slate-700">
+                            {formatPlatformFee(merchant.platformFeeType, merchant.platformFeeValue)}
+                          </span>
+                        </p>
 
                         {merchant.description && (
                           <p className="mt-2 line-clamp-2 text-[11px] leading-5 text-slate-500">
@@ -648,6 +731,84 @@ export default function AdminMerchantsPage() {
               </div>
 
               <div className="rounded-2xl border border-slate-100 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Fee Platform</p>
+                    <p className="mt-1 text-sm leading-6 text-slate-500">
+                      Aturan ini menentukan potongan platform dari margin merchant. Merchant hanya melihat hasil perhitungannya, tidak bisa mengubahnya sendiri.
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700">
+                    Admin Control
+                  </span>
+                </div>
+                <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                      Tipe Fee Platform
+                    </label>
+                    <select
+                      value={feeTypeDraft}
+                      onChange={(e) => setFeeTypeDraft(e.target.value as "PERCENT" | "FIXED")}
+                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 transition focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100"
+                    >
+                      <option value="FIXED">Nominal Tetap</option>
+                      <option value="PERCENT">Persentase Margin</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                      Nilai Fee Platform
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step={feeTypeDraft === "PERCENT" ? "0.01" : "1"}
+                      value={feeValueDraft}
+                      onChange={(e) => setFeeValueDraft(e.target.value)}
+                      placeholder={feeTypeDraft === "PERCENT" ? "Contoh: 10" : "Contoh: 1000"}
+                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 transition focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100"
+                    />
+                  </div>
+                </div>
+                <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">
+                  <p className="font-semibold text-slate-800">Ringkasan aturan saat ini</p>
+                  <p className="mt-1 leading-6">
+                    Platform mengambil{" "}
+                    <span className="font-semibold text-slate-800">
+                      {formatPlatformFee(feeTypeDraft, Number(feeValueDraft) || 0)}
+                    </span>{" "}
+                    dari margin merchant. Buyer tetap membayar harga jual merchant, lalu sistem membagi hasil sesuai aturan ini.
+                  </p>
+                </div>
+                <label className="mt-4 flex items-start gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+                  <input
+                    type="checkbox"
+                    checked={applyFeeToProducts}
+                    onChange={(e) => setApplyFeeToProducts(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                  />
+                  <span>
+                    <span className="block font-semibold text-slate-800">
+                      Terapkan juga ke semua produk merchant yang sudah aktif
+                    </span>
+                    <span className="mt-1 block text-xs leading-5 text-slate-500">
+                      Cocok dipakai kalau admin ingin langsung merapikan fee platform merchant ini secara menyeluruh, bukan hanya untuk produk baru berikutnya.
+                    </span>
+                  </span>
+                </label>
+                <div className="mt-4 flex justify-end">
+                  <button
+                    onClick={savePlatformFeeSettings}
+                    disabled={savingFee}
+                    className="rounded-2xl bg-emerald-600 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {savingFee ? "Menyimpan..." : "Simpan Fee Platform"}
+                  </button>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-100 p-4">
                 <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Pemilik Merchant</p>
                 <div className="mt-3 space-y-2 text-sm text-slate-600">
                   <p><span className="font-semibold text-slate-800">Nama:</span> {detailMerchant.user.name ?? "Tanpa nama"}</p>
@@ -725,7 +886,7 @@ export default function AdminMerchantsPage() {
                   Salin produk aktif ke merchant terpilih
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-slate-500">
-                  Sistem hanya menyalin daftar produk aktif. Harga target akan kembali memakai harga dasar/default, jadi merchant target tetap bisa mengatur harga sendiri setelahnya.
+                  Sistem menyalin daftar produk aktif dengan harga dasar website dan otomatis memakai fee platform sesuai pengaturan merchant target. Merchant target tetap bisa mengatur harga jualnya sendiri setelahnya.
                 </p>
               </div>
               <button
