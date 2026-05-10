@@ -77,6 +77,11 @@ export class Agenh2hAdapter implements IProviderPort {
   async getProducts(): Promise<ProviderProduct[]> {
     try {
       await this.ensureConfig();
+      console.log("[AGENH2H] Requesting product list", {
+        url: `${this.baseUrl}/produk`,
+        hasApiKey: Boolean(this.apiKey),
+      });
+
       const response = await fetch(`${this.baseUrl}/produk`, {
         method: "POST",
         headers: {
@@ -92,12 +97,35 @@ export class Agenh2hAdapter implements IProviderPort {
       }
 
       const json = (await response.json()) as Agenh2hRecord;
+      console.log("[AGENH2H] Raw product response:", JSON.stringify(json));
       const items = pickArray(json);
-      if (!items.length) return [];
+      console.log("[AGENH2H] Parsed product containers", {
+        itemCount: items.length,
+        topLevelKeys: Object.keys(json),
+        dataType: Array.isArray(json.data) ? "array" : typeof json.data,
+      });
+      if (!items.length) {
+        console.warn("[AGENH2H] Product sync returned zero parsable items. Response shape may not match current parser.");
+        return [];
+      }
 
-      return items
+      const normalized = items
         .map(normalizeProductRecord)
         .filter((item): item is ProviderProduct => Boolean(item));
+
+      console.log("[AGENH2H] Normalized products summary", {
+        rawItems: items.length,
+        normalizedItems: normalized.length,
+        sample: normalized.slice(0, 3).map((item) => ({
+          code: item.providerCode,
+          name: item.providerName,
+          category: item.category,
+          brand: item.brand,
+          price: item.price,
+        })),
+      });
+
+      return normalized;
     } catch (error) {
       throw new ProviderError(
         `Failed to get AgenH2H products: ${error instanceof Error ? error.message : "Unknown error"}`,
